@@ -534,7 +534,7 @@ void X86PassConfig::addPreEmitPass2() {
     addPass(createCFIInstrInserter());
 
     
-  if (EnableInterFunctionFusion && LevelDeepFusion > 0) {
+  if (EnableFus && LevelDeepFusion > 0) {
     addPass(createDeepFusionLevel1Pass());
   }
   

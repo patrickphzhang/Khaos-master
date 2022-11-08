@@ -1,6 +1,5 @@
 #include "llvm/Transforms/CodeProt/Utils.h"
 
-#define DEBUG_TYPE "prepare"
 using namespace llvm;
 
 class InterFunctionDeepFusionPrepare : public LoopPass {

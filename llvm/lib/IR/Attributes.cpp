@@ -183,6 +183,29 @@ Attribute::getWithAllocSizeArgs(LLVMContext &Context, unsigned ElemSizeArg,
 // Attribute Accessor Methods
 //===----------------------------------------------------------------------===//
 
+bool Attribute::isAttributeInSet() const {
+  if (!pImpl) return false;
+  assert((isEnumAttribute() || isIntAttribute() || isTypeAttribute()) &&
+         "Invalid attribute type to get the kind as an enum!");
+  Attribute::AttrKind kind = pImpl->getKindAsEnum();
+  if (kind == Attribute::Alignment || kind == Attribute::AllocSize || kind == Attribute::ArgMemOnly 
+    || kind == Attribute::Builtin || kind == Attribute::ByVal || kind == Attribute::Convergent 
+    || kind == Attribute::Dereferenceable || kind == Attribute::DereferenceableOrNull 
+    || kind == Attribute::InAlloca || kind == Attribute::InReg 
+    || kind == Attribute::InaccessibleMemOnly || kind == Attribute::InaccessibleMemOrArgMemOnly 
+    || kind == Attribute::JumpTable || kind == Attribute::Naked || kind == Attribute::Nest 
+    || kind == Attribute::NoAlias || kind == Attribute::NoBuiltin || kind == Attribute::NoCapture 
+    || kind == Attribute::NoReturn || kind == Attribute::NoSync || kind == Attribute::None 
+    || kind == Attribute::NonNull || kind == Attribute::ReadNone || kind == Attribute::ReadOnly 
+    || kind == Attribute::Returned || kind == Attribute::ReturnsTwice || kind == Attribute::SExt 
+    || kind == Attribute::Speculatable || kind == Attribute::StackAlignment 
+    || kind == Attribute::StructRet || kind == Attribute::SwiftError || kind == Attribute::SwiftSelf 
+    || kind == Attribute::WillReturn || kind == Attribute::WriteOnly || kind == Attribute::ZExt 
+    || kind == Attribute::ImmArg || kind == Attribute::EndAttrKinds)
+    return true;
+  return false;
+}
+
 bool Attribute::isEnumAttribute() const {
   return pImpl && pImpl->isEnumAttribute();
 }

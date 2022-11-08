@@ -4,7 +4,7 @@ add_llvm_library( LLVMCodeProtMid
   BogusControlFlow.cpp
   Flattening.cpp
   Substitution.cpp 
-  InterFunctionFusion.cpp
+  Fus.cpp
   InterFunctionPrepare.cpp
   InterFunctionShuffleBlock.cpp
   InterFunctionShuffleLoop.cpp

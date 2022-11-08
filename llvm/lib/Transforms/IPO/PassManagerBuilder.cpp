@@ -487,13 +487,13 @@ void PassManagerBuilder::populateModulePassManager(
     if (EnableInterFunctionShufflePass) {
       MPM.add(createInterFunctionShuffleLoopMultiPass());
       MPM.add(createInterFunctionShuffleBlockPass());
-      if (!EnableInterFunctionFusion)
+      if (!EnableFus)
         MPM.add(createInterFunctionShufflePositionPass());
     }
 
     if (EnableInterFunctionShuffleOptPass) {
       MPM.add(createInterFunctionShuffleOptPass());
-      if (!EnableInterFunctionFusion)
+      if (!EnableFus)
         MPM.add(createInterFunctionShufflePositionPass());
     }
 
@@ -819,12 +819,12 @@ void PassManagerBuilder::populateModulePassManager(
   if (EnableInterFunctionShufflePass) {
     MPM.add(createInterFunctionShuffleLoopMultiPass());
     MPM.add(createInterFunctionShuffleBlockPass());
-    if (!EnableInterFunctionFusion)
+    if (!EnableFus)
       MPM.add(createInterFunctionShufflePositionPass());
   }
   if (EnableInterFunctionShuffleOptPass) {
     MPM.add(createInterFunctionShuffleOptPass());
-    if (!EnableInterFunctionFusion)
+    if (!EnableFus)
       MPM.add(createInterFunctionShufflePositionPass());
   }
 
@@ -842,12 +842,12 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
   PM.add(createGlobalDCEPass());
 
   // CodeProt
-  if (EnableInterFunctionFusion) {
+  if (EnableFus) {
       PM.add(createInterFunctionPreparePass());
       if (LevelDeepFusion > 1) {
         PM.add(createInterFunctionDeepFusionPreparePass());
       }
-      PM.add(createInterFunctionFusionPass());
+      PM.add(createFusPass());
       PM.add(createInterFunctionShufflePositionPass());
   }
 

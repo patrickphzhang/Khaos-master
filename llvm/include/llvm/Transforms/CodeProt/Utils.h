@@ -74,7 +74,7 @@ namespace llvm {
     extern std::vector<int> EncryptedGVSize;
     class ModulePass;
     extern ModulePass *createParseJsonPass();
-    extern ModulePass *createInterFunctionFusionPass();
+    extern ModulePass *createFusPass();
     extern Pass *createInterFunctionPreparePass();
     extern Pass *createSplitBasicBlock(bool flag);
     extern Pass *createInterFunctionShuffleLoopPass();
@@ -102,14 +102,14 @@ bool toObfuscate(bool flag, Function *f, std::string attribute);
 
 
 extern cl::opt<int> RatioGlobal;
-extern cl::opt<int> RatioInterFunctionFusion;
+extern cl::opt<int> RatioFus;
 extern cl::opt<int> LevelDeepFusion;
 extern cl::opt<int> RatioObfuscation;
 extern cl::opt<int> RatioInterShuffle;
 //extern cl::opt<unsigned long long> PayloadKey;
 
 // KHAOS
-extern cl::opt<bool> EnableInterFunctionFusion;
+extern cl::opt<bool> EnableFus;
 extern cl::opt<bool> EnableInterFunctionShufflePass;
 extern cl::opt<bool> EnableInterFunctionShuffleOptPass;
 extern cl::opt<bool> FissionedFunctionOnly;
@@ -123,7 +123,7 @@ extern cl::opt<bool> EnableCodeObfFla;
 extern cl::opt<bool> EnableCodeObfBog;
 
 
-#define PROTNAME_INTERFUSION    "InterFunctionFusion"
+#define PROTNAME_INTERFUSION    "Fus"
 #define PROTNAME_OBFUSCATION    "Obfuscation"
 #define PROTNAME_INTERSHUFFLE   "InterFunctionShuffle"
 #define PROTNAME_INTERSHUFFLEOPT "InterFunctionShuffleOpt"  //added for intershuffle opt

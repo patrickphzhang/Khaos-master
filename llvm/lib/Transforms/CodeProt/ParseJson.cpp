@@ -20,8 +20,8 @@ static cl::opt<std::string> JsonFile("file", cl::value_desc("filename"),
         cl::desc("A file containing list of functions to protect"), cl::Hidden);
 cl::opt<int> RatioGlobal("ratio", cl::init(0), cl::Hidden,
 		cl::desc("Protect ratio for all types"));
-cl::opt<int> RatioInterFunctionFusion("ratio-interfusion", cl::init(0), cl::Hidden,
-		cl::desc("Protect ratio for InterFunctionFusion"));
+cl::opt<int> RatioFus("ratio-interfusion", cl::init(0), cl::Hidden,
+		cl::desc("Protect ratio for Fus"));
 cl::opt<int> RatioObfuscation("ratio-obfuscation", cl::init(0), cl::Hidden,
 		cl::desc("Protect ratio for obfuscation"));
 cl::opt<int> RatioInterShuffle("ratio-intershuffle", cl::init(0), cl::Hidden,
@@ -38,8 +38,8 @@ cl::opt<bool> EnableCodeObfFla("enable-codeobf-fla", cl::init(false), cl::Hidden
 		cl::desc("Enable Code Obfuscation Flattening"));
 cl::opt<bool> EnableCodeObfBog("enable-codeobf-bog", cl::init(false), cl::Hidden,
 		cl::desc("Enable Code Obfuscation Bogus"));
-cl::opt<bool> EnableInterFunctionFusion("enable-interfusion", cl::init(false), cl::Hidden,
-		cl::desc("Enable InterFunctionFusion"));
+cl::opt<bool> EnableFus("enable-interfusion", cl::init(false), cl::Hidden,
+		cl::desc("Enable Fus"));
 cl::opt<bool> FissionedFunctionOnly("fissioned-function-only", cl::init(false), cl::Hidden,
 		cl::desc("Only Fusion Fissioned Functions"));
 cl::opt<bool> OriginFunctionOnly("origin-function-only", cl::init(false), cl::Hidden,

@@ -108,6 +108,8 @@ public:
   //===--------------------------------------------------------------------===//
   // Attribute Accessors
   //===--------------------------------------------------------------------===//
+  /// Return true if the attribute is in fusion set.
+  bool isAttributeInSet() const;
 
   /// Return true if the attribute is an Attribute::AttrKind type.
   bool isEnumAttribute() const;

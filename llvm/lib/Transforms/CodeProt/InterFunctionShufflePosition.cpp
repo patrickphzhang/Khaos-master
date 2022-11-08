@@ -63,7 +63,7 @@ void InterFunctionShufflePositionPass::shuffle(Module &M, int NumPerGroup) {
     for (auto ib = M.begin(), ie = M.end(); ib != ie; ib++) {
         Function *tempF = &(*ib);
         if (tempF->isDeclaration() || tempF->isIntrinsic()) continue;
-        if (tempF->isAbsoluteSymbolRef() || tempF->isExternalLinkage || !EnableInterFunctionFusion) {
+        if (tempF->isAbsoluteSymbolRef() || tempF->isExternalLinkage || !EnableFus) {
             // this function's name can not be changed
             // lto is needed
         } else {

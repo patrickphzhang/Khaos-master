@@ -1,4 +1,4 @@
-//===- InterFunctionFusion.cpp ------------------------------------- ---------------===//
+//===- Fus.cpp ------------------------------------- ---------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,13 +18,13 @@
 #include "llvm/Transforms/CodeProt/InterFunctionDeepFusionPrepare.h"
 #include "llvm/IR/Verifier.h"
 
-#define DEBUG_TYPE "InterFunctionFusion"
+#define DEBUG_TYPE "Fus"
 
 namespace {
-    struct InterFunctionFusion : public ModulePass {
+    struct Fus : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
         const string ProtName = PROTNAME_INTERFUSION;
-        const int ProtRatio = RatioInterFunctionFusion;
+        const int ProtRatio = RatioFus;
         const int DeepLevel = LevelDeepFusion;
         LLVMContext *C;
         Module *MM;
@@ -36,9 +36,9 @@ namespace {
         SmallVector<Type *, 8> FusionParamTypes;
         SmallVector<Type *, 8> IntParamTypes, FloatParamTypes, F1VectorParamTypes, F2VectorParamTypes;
         uint TrampolineID = 0;
-        InterFunctionFusion() : ModulePass(ID) {
-            // // errs() << "InterFunctionFusion con\n";
-            initializeInterFunctionFusionPass(*PassRegistry::getPassRegistry());
+        Fus() : ModulePass(ID) {
+            // // errs() << "Fus con\n";
+            initializeFusPass(*PassRegistry::getPassRegistry());
         }
             
         void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -74,7 +74,6 @@ namespace {
         Type* mergeType(Type *T1, Type *T2);
         Value *getExactValue(Value * value);
         bool isEHRelatedFunction(Function *F);
-        bool isUnfusionableFunction(Function *F);
         void deepFusionLevel1(ValueToValueMapTy &VMap, Function *from, Function *to, bool IsFirst);
         bool deepFusionLevel2(ValueToValueMapTy &VMap);
         BasicBlock* preprocessToMergable(BasicBlock *BB);
@@ -83,25 +82,25 @@ namespace {
         BasicBlock *getOneHarmlessBasicBlock(std::vector<BasicBlock *> &HarmlessBB);
         void getValuesNeedPHI(BasicBlock *Root, std::map<Value*, SetVector<Instruction*>*> &Values);
         void insertOpaquePredict(BasicBlock *from, BasicBlock *to, bool IsFirst);
-        void fixFusionAttribtes(Function *F);
+        void ffa(Function *F);
         void getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers);
         void getFunctionUsed(Instruction *I, SetVector<Function *> &UsedFunctions);
         void extractPtrAndCtrlBitAtICall(Module &M);
         uint getIntArgSize(Function *F);
         void insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
                                     ValueToValueMapTy &VMap);
-
+        // cleaning
+        // bool AttributeInSet(Attribute::AttrKind kind);
     };
 
 }
 
-char InterFunctionFusion::ID = 0;
-void InterFunctionFusion::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
+char Fus::ID = 0;
+void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
                                                 ValueToValueMapTy &VMap) {
     assert(Old->size() == 0 && "What happened? We have already clean the body of Old.");
     auto &Context = New->getContext();
     Module *M = New->getParent();
-    const DataLayout &DL = M->getDataLayout();
     BasicBlock *TrampolineBB = BasicBlock::Create(Context, Old->getName() + "_trampoline", Old);
     // arrange new arg list
     SmallVector<Value*, 4> IntArgs, FloatArgs, F1VectorArgs, F2VectorArgs, VectorArgs;
@@ -223,40 +222,11 @@ void InterFunctionFusion::insertTrampolineCall(Function *Old, Function *New, boo
     }
 }
 
-bool InterFunctionFusion::runOnModule(Module &M) {
+bool Fus::runOnModule(Module &M) {
     // return false;
-    // errs() << "InterFunctionFusion\n";
+    // errs() << "Fus\n";
     // M.dump();
     // errs() << "Deep Fusion Level: " << DeepLevel << "\n";
-    
-    // // errs() << getAnalysis<InterFunctionDeepFusionPrepare>().getFunctionsWithLoop().size() << "\n";
-    // if (DeepLevel > 1) {
-    //     auto &LI = getAnalysis<LoopInfoWrapperPass>();
-    //     // errs() << "1\n";
-    //     auto &LII = LI.getLoopInfo();
-    //     // errs() << "2\n";
-    // }
-    // for (auto &F : M) {
-    //     if (F.getName() == "_init"
-    //         || F.getName().find("__cxx_global_var_init") != StringRef::npos
-    //         || F.getName().find("__gxx_personality_v0") != StringRef::npos
-    //         || F.getName().find("__clang_call_terminate") != StringRef::npos
-    //         || F.getName().find("_GLOBAL__sub_I_") != StringRef::npos
-    //         || F.getName().find("extract_ptrval") != StringRef::npos
-    //         || F.getName().find("extract_ctrlbit") != StringRef::npos
-    //         || F.getName().find("extract_ctrlsign") != StringRef::npos)
-    //         continue;
-    //     if (!F.isIntrinsic() && !F.isDeclaration()) {
-    //         // errs() << "--------" << F.getName() << "\n";
-    //     }
-    // }
-    // return false;
-    // for (auto &it : LoopCalleeMap) {
-    //     // errs() << it.first->getName() << " are calling:\n";
-    //     for (auto &itt : *it.second) {
-    //         // errs() << "    " << itt->getName() << "\n";
-    //     }
-    // }
     MM = &M;
     C = &M.getContext();
     VoidTy = Type::getVoidTy(*C);
@@ -367,10 +337,6 @@ bool InterFunctionFusion::runOnModule(Module &M) {
             || F.getName().find("extract_ctrlsign") != StringRef::npos
             || F.getName().find("get_random") != StringRef::npos)
             continue;
-        // if (!EnableInterFunctionShufflePass && isUnfusionableFunction(&F)) {
-        //     // errs() << "skipping " << F.getName() << "\n";
-        //     continue;
-        // }
         TotalCount++;
         // function SolverGMRES::solve can not be processed, both fusion or fission
                                     // _ZN6dealii8SolverCG    INS_6VectorIdEEE5solveINS_12SparseMatrixIdEENS_16PreconditionSSORIS6_EEEEvRKT_RS2_RKS2_RKT0_
@@ -737,7 +703,7 @@ bool InterFunctionFusion::runOnModule(Module &M) {
         }
         
         // Fix attributes for FusionFunction, because there are some conflicts between F1 and F2.
-        fixFusionAttribtes(FusionFunction);
+        ffa(FusionFunction);
         if (FusionFunction->getAlignment() < 16) {
             FusionFunction->setAlignment(16);
         }
@@ -802,7 +768,7 @@ bool InterFunctionFusion::runOnModule(Module &M) {
     return true;
 }
 
-uint InterFunctionFusion::getIntArgSize(Function *F) {
+uint Fus::getIntArgSize(Function *F) {
     uint IntArgSize = F->arg_size();
     for (uint i = 0; i < F->arg_size(); i++) {
         Value *Argi = F->getArg(i);
@@ -813,7 +779,7 @@ uint InterFunctionFusion::getIntArgSize(Function *F) {
     return IntArgSize;
 }
 
-void InterFunctionFusion::getFunctionUsed(Instruction *I, SetVector<Function *> &UsedFunctions) {
+void Fus::getFunctionUsed(Instruction *I, SetVector<Function *> &UsedFunctions) {
     if (CallBase *CB = dyn_cast<CallBase>(I)) {
         // CB->dump();
         CallSite CS(CB);
@@ -829,7 +795,7 @@ void InterFunctionFusion::getFunctionUsed(Instruction *I, SetVector<Function *> 
     }
 }
 
-pair<Function *, Function *> InterFunctionFusion::randomChooseFromSet(SetVector<Function *> &set) {
+pair<Function *, Function *> Fus::randomChooseFromSet(SetVector<Function *> &set) {
     if (set.size() == 0)
         return make_pair(nullptr, nullptr);
     pair<Function *, Function *> theTwoToFusion;
@@ -930,7 +896,7 @@ pair<Function *, Function *> InterFunctionFusion::randomChooseFromSet(SetVector<
 }
 
 // Collect function's parametter types and names.
-void InterFunctionFusion::collectFunctionParams(Function *F,
+void Fus::collectFunctionParams(Function *F,
         SmallVector<Type *, 8> &IntParamTypes,
         SmallVector<Type *, 8> &FloatParamTypes,
         SmallVector<Type *, 8> &VectorParamTypes,
@@ -973,7 +939,7 @@ void InterFunctionFusion::collectFunctionParams(Function *F,
     }
 }
 
-void InterFunctionFusion::mergeFunctionParams(
+void Fus::mergeFunctionParams(
         SmallVector<Type *, 8> &ParamTypes,
         SmallVector<Type *, 8> &F1ParamTypes,
         SmallVector<Type *, 8> &F2ParamTypes) {
@@ -997,7 +963,7 @@ void InterFunctionFusion::mergeFunctionParams(
     }
 }
 
-Type * InterFunctionFusion::mergeType(Type * T1, Type * T2) {
+Type * Fus::mergeType(Type * T1, Type * T2) {
     if (T1->isStructTy() || T2->isStructTy()
         || T1->isPointerTy() || T2->isPointerTy()
         || T1->isArrayTy() || T2->isArrayTy()
@@ -1016,7 +982,7 @@ Type * InterFunctionFusion::mergeType(Type * T1, Type * T2) {
 
 // 1. Replace return with store in SrcFunction.
 // 2. Move basicblocks from SrcFunction to DestFunction.
-BasicBlock *InterFunctionFusion::moveFunction(Function *SrcFunction,
+BasicBlock *Fus::moveFunction(Function *SrcFunction,
                                                 Function *DestFunction,
                                                 Module *M,
                                                 ValueToValueMapTy &VMap) {
@@ -1099,7 +1065,7 @@ BasicBlock *InterFunctionFusion::moveFunction(Function *SrcFunction,
     return retBlock;
 }
 
-bool InterFunctionFusion::isEHRelatedFunction(Function *F) {
+bool Fus::isEHRelatedFunction(Function *F) {
     for (auto &BB : *F) {
         if (BB.isEHPad()) {
             return true;
@@ -1113,59 +1079,7 @@ bool InterFunctionFusion::isEHRelatedFunction(Function *F) {
     return false;
 }
 
-bool InterFunctionFusion::isUnfusionableFunction(Function *F) {
-    bool ContainsInsertWithResume = false, ContainsUnreachable = false, 
-         ContainsThrow = false, ContainsConstructorInvoke = false, 
-         ContainsDestructorInvoke = false, ContainsIndirectInvoke = false, 
-         ContainsNewArr = false, ContainsNew = false, ContainsDelete = false;
-    for (auto &BB : *F) {
-        bool BeginRecord = false;
-        for (auto &I : BB) {
-            if (isa<InsertValueInst>(&I)) {
-                BeginRecord = true;
-            } else if (isa<ResumeInst>(&I)) {
-                ContainsInsertWithResume = true;
-            } else if (isa<UnreachableInst>(&I)) {
-                ContainsUnreachable = true;
-            } else if (InvokeInst *II = dyn_cast<InvokeInst>(&I)) {
-                Function *Callee = II->getCalledFunction();
-                if (Callee) {
-                    if (Callee->getName().equals("__cxa_throw")) {
-                        ContainsThrow = true;
-                    } else if (Callee->getName().endswith("C2Ev")) {
-                        ContainsConstructorInvoke = true;
-                    } else if (Callee->getName().endswith("D2Ev")) {
-                        ContainsDestructorInvoke = true;
-                    } else if (Callee->getName().equals("_Znam")) {
-                        ContainsNewArr = true;
-                    } else if (Callee->getName().equals("_Znwm")) {
-                        ContainsNew = true;
-                    }
-                } else {
-                    ContainsIndirectInvoke = true;
-                }
-            } else if (CallInst *CI = dyn_cast<CallInst>(&I)) {
-                Function *Callee = CI->getCalledFunction();
-                if (Callee) {
-                    if (Callee->getName().equals("_ZdlPv")) {
-                        ContainsDelete = true;
-                    } else if (Callee->getName().endswith("D2Ev")) {
-                        ContainsDestructorInvoke = true;
-                    }
-                }
-            }
-        }
-    }
-    if (ContainsInsertWithResume && ContainsUnreachable && ContainsNewArr && ContainsNewArr
-        && ContainsDelete && ContainsDestructorInvoke
-        /*ContainsConstructorInvoke && ContainsIndirectInvoke && ContainsThrow &&
-         &&  && ContainsNew*/)
-        return true;
-    else
-        return false;
-}
-
-void InterFunctionFusion::deepFusionLevel1(ValueToValueMapTy &VMap, Function *from, Function *to, bool IsFirst) {
+void Fus::deepFusionLevel1(ValueToValueMapTy &VMap, Function *from, Function *to, bool IsFirst) {
     // // errs() << "deep fusion level 1\n";
     // we do not handle exception irrelevent function
     if (isEHRelatedFunction(from)) {
@@ -1196,7 +1110,7 @@ void InterFunctionFusion::deepFusionLevel1(ValueToValueMapTy &VMap, Function *fr
     // return !verifyFunction(*FusionFunction);
 }
 
-bool InterFunctionFusion::deepFusionLevel2(ValueToValueMapTy &VMap) {
+bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
     // // errs() << "deep fusion level 2\n";
     // F1->dump();
     // F2->dump();
@@ -1437,7 +1351,7 @@ bool InterFunctionFusion::deepFusionLevel2(ValueToValueMapTy &VMap) {
     }
 }
 
-BasicBlock* InterFunctionFusion::preprocessToMergable(BasicBlock *BB) {
+BasicBlock* Fus::preprocessToMergable(BasicBlock *BB) {
     // split the head and tail, get the body part
     // split head
     // // errs() << "preprocessToMergable\n";
@@ -1469,7 +1383,7 @@ BasicBlock* InterFunctionFusion::preprocessToMergable(BasicBlock *BB) {
     return BB;
 }
 
-BasicBlock* InterFunctionFusion::getOneHarmlessBasicBlock(std::vector<BasicBlock *> &HarmlessBB) {
+BasicBlock* Fus::getOneHarmlessBasicBlock(std::vector<BasicBlock *> &HarmlessBB) {
     //get the largest, at least two instruction
     int size = 1;
     BasicBlock *LargestBB = nullptr;
@@ -1482,7 +1396,7 @@ BasicBlock* InterFunctionFusion::getOneHarmlessBasicBlock(std::vector<BasicBlock
     return LargestBB;
 }
 
-void InterFunctionFusion::getHarmlessBasicBlocks(Function *F, std::vector<BasicBlock *> &HarmlessBB) {
+void Fus::getHarmlessBasicBlocks(Function *F, std::vector<BasicBlock *> &HarmlessBB) {
     Instruction *InsertPoint = &F->getEntryBlock().front();
     auto const &HarmnessMap = getAnalysis<HarmnessAnalysis>()
                           .getHarmnessMap();
@@ -1538,7 +1452,7 @@ void InterFunctionFusion::getHarmlessBasicBlocks(Function *F, std::vector<BasicB
 
 // key: values need phi
 // value: instructions use the key
-void InterFunctionFusion::getValuesNeedPHI(BasicBlock *Root, std::map<Value*, SetVector<Instruction*>*> &Values) {
+void Fus::getValuesNeedPHI(BasicBlock *Root, std::map<Value*, SetVector<Instruction*>*> &Values) {
     DT = &getAnalysis<DominatorTreeWrapperPass>(*FusionFunction).getDomTree();
     for (auto &BB : *FusionFunction) {
         // it says that bb does not dominate itself, but we still added this check
@@ -1607,7 +1521,7 @@ void InterFunctionFusion::getValuesNeedPHI(BasicBlock *Root, std::map<Value*, Se
     }
 }
 
-void InterFunctionFusion::moveAllocas() {
+void Fus::moveAllocas() {
     std::vector<Instruction*> toMove;
     for (BasicBlock &BB : *FusionFunction) {
         for (Instruction &I : BB) {
@@ -1629,7 +1543,7 @@ void InterFunctionFusion::moveAllocas() {
     
 }
 
-void InterFunctionFusion::insertOpaquePredict(BasicBlock *from, BasicBlock * to, bool IsFirst) {
+void Fus::insertOpaquePredict(BasicBlock *from, BasicBlock * to, bool IsFirst) {
     BasicBlock::iterator i1 = from->begin();
     if (from->getFirstNonPHIOrDbgOrLifetime()) {
         i1 = (BasicBlock::iterator)from->getFirstNonPHIOrDbgOrLifetime();
@@ -1703,7 +1617,7 @@ void InterFunctionFusion::insertOpaquePredict(BasicBlock *from, BasicBlock * to,
     // }
 }
 
-void InterFunctionFusion::replaceAliasUsers(Function *Old) {
+void Fus::replaceAliasUsers(Function *Old) {
     // // errs() << "replaceAliasUsers\n";
     // check if Old's users contain GlobalAlias, if true, replace it with old and delete it.
     SmallVector<GlobalAlias *, 4> GlobalAliasToKill;
@@ -1744,13 +1658,9 @@ void InterFunctionFusion::replaceAliasUsers(Function *Old) {
 }
 
 // Construct arguments for FusionFuction.
-void InterFunctionFusion::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
+void Fus::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
     // // errs() << "replaceDirectCallers\n";
     bool oldFuncRetVoid = Old->getReturnType()->isVoidTy();
-    Module *M = New->getParent();
-    const DataLayout &DL = M->getDataLayout();
-    auto NewPAL = New->getAttributes();
-    Type *retTy = New->getReturnType();
     std::vector<CallBase *> CallUsers;
     getCallInstBySearch(Old, CallUsers);
     for (uint i = 0; i < CallUsers.size(); i++) {
@@ -2011,7 +1921,7 @@ void InterFunctionFusion::replaceDirectCallers(Function *Old, Function *New, boo
     }
 }
 
-Value *InterFunctionFusion::getExactValue(Value * value) {
+Value *Fus::getExactValue(Value * value) {
     if (BitCastOperator * BO = dyn_cast<BitCastOperator>(value)) {
         return getExactValue(BO->getOperand(0));
     } else if (GlobalAlias *GA = dyn_cast<GlobalAlias>(value)){
@@ -2021,7 +1931,7 @@ Value *InterFunctionFusion::getExactValue(Value * value) {
     }
 }
 
-void InterFunctionFusion::getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers) {
+void Fus::getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers) {
     // // errs() << "getCallInstBySearch" << Old->getName() << "\n";
     for (auto &F : *MM) {
         for (auto &BB : F) {
@@ -2031,21 +1941,14 @@ void InterFunctionFusion::getCallInstBySearch(Function *Old, std::vector<CallBas
                     Value * Callee = CB->getCalledValue();
                     if (isa<Function>(Callee)) {
                         if (Callee == Old) {
-                            // // errs() << "called old\n";
                             CallUsers.push_back(CB);
                         }
                     } else if (isa<BitCastOperator>(Callee)){
-                        // // errs() << "called bitcast\n";
                         Value *CalledValue = getExactValue(Callee);
-                        // CalledValue->dump();
                         if (CalledValue == Old) {
-                            // // errs() << "called old\n";
                             CallUsers.push_back(CB);
                         } else if (Function * CalleeFunction = dyn_cast<Function>(CalledValue)) {
-                            // // errs() << "called function" << CalleeFunction->getName();
-                            // // errs() << "CalleeFunction->isDeclaration(): " << CalleeFunction->isDeclaration() << "\n";
                             if (CalleeFunction->isDeclaration() && CalleeFunction->getName() == Old->getName()) {
-                                // // errs() << "called old\n";
                                 CallUsers.push_back(CB);
                             }
                         }
@@ -2056,15 +1959,12 @@ void InterFunctionFusion::getCallInstBySearch(Function *Old, std::vector<CallBas
             }
         }
     }
-    // // errs() << "getCallInstBySearch end, found " << CallUsers.size() << " uses\n";
 }
 
-void InterFunctionFusion::replaceIndirectUsers(Function *Old, Function *New, bool IsFirst) {
-    // // errs() << "replaceInstUsers\n";
+void Fus::replaceIndirectUsers(Function *Old, Function *New, bool IsFirst) {
     // check if there exist users of old function
     if (Old->getNumUses() == 0)
         return;
-    
     Constant * NewConstant = llvm::ConstantExpr::getPtrToInt(New, Int64Ty);
     Constant *ctrlArg; // use the third and the fourth bits. the first bit is used for virtual, the second is used in exception handling
     if (IsFirst)
@@ -2079,14 +1979,9 @@ void InterFunctionFusion::replaceIndirectUsers(Function *Old, Function *New, boo
     assert(Old->getNumUses() == 0 && "unhandled user for old.");
 }
 
-void InterFunctionFusion::extractPtrAndCtrlBitAtICall(Module &M) {
+void Fus::extractPtrAndCtrlBitAtICall(Module &M) {
     vector<CallBase*> IndirectCalls;
-    // Function *MainFunction;
     for (auto &F : M) {
-        // if (F.getName() != "main")
-        //     continue;
-        // F.dump();
-        // MainFunction = &F;
         for (auto &BB : F)
             for (auto &I : BB)
                 if (CallBase *CB = dyn_cast<CallBase>(&I))
@@ -2111,40 +2006,25 @@ void InterFunctionFusion::extractPtrAndCtrlBitAtICall(Module &M) {
         for (unsigned i = 0; i < IndirectCallNum; i++)
         {
             CallBase *CB = IndirectCalls.at(i);
-            // // errs() << "indirect call " << i << "\n";
-            // CB->dump();
-            // if (i == 980) {
-            //     CB->getParent()->getParent()->dump();
-            // }
-            // Extract the ctrlSign
+            
             Value *IndirectFunction = CB->getCalledOperand();
-            // // errs() << "called operand: \n";
-            // IndirectFunction->dump();
-            // Type *IFuncTy = IndirectFunction->getType();
+            
             Value *newVal = CastInst::CreatePointerCast(IndirectFunction, Int8PtrTy, "", CB);
             Value *ctrlSign = CallInst::Create(ExtractCtrlSign, newVal, "", CB);
 
             // Split the callbase into an independent BB.
             // PredBB ---> OrigCallBB ---> OrigTarBB
             // PredBB ---> OrigInvokeBB ---> NormalDestBB
-
             BasicBlock *PredBB = CB->getParent();
-            // // errs() << "CB->getParent()\n";
-            // CB->getParent()->dump();
+            
             BasicBlock *OrigCallBB = CB->getParent()->splitBasicBlock(CB);
-            // // errs() << "after split\n";
-            // PredBB->dump();
-            // OrigCallBB->dump();
+            
             PredBB->getTerminator()->eraseFromParent();
             BasicBlock *OrigTarBB;
             if (isa<CallInst>(CB))
                 OrigTarBB = OrigCallBB->splitBasicBlock(CB->getNextNode());
             else if (InvokeInst *II = dyn_cast<InvokeInst>(CB))
                 OrigTarBB = II->getNormalDest();
-            // // errs() << "1\n";
-            // PredBB->dump();
-            // OrigCallBB->dump();
-            // OrigTarBB->dump();
             // Create NewCallBB and fixed the branch according to ctrlSign.
             // PredBB ---> OrigCallBB ---> OrigTarBB
             //   |                             |
@@ -2157,15 +2037,6 @@ void InterFunctionFusion::extractPtrAndCtrlBitAtICall(Module &M) {
                                             "");
             BranchInst::Create(OrigCallBB, NewCallBB, icmp, PredBB);
             BranchInst::Create(OrigTarBB, NewCallBB);
-            // // errs() << "2\n";
-            // PredBB->dump();
-            // OrigCallBB->dump();
-            // OrigTarBB->dump();
-            // NewCallBB->dump();
-            // Set call target for OrigCallBB.
-            // Value *castVal = CastInst::CreatePointerCast(ptrVal, IFuncTy, "", CB);
-            // CB->setCalledOperand(castVal);
-
             // Set call target for NewCallBB.
             Instruction *insPt = NewCallBB->getTerminator();
             Value *ctrlBit = CallInst::Create(ExtractCtrlBit, newVal, "", insPt);
@@ -2224,17 +2095,7 @@ void InterFunctionFusion::extractPtrAndCtrlBitAtICall(Module &M) {
                 BasicBlock *NormalDest = II->getNormalDest();
                 BasicBlock *UnwindDest = II->getUnwindDest();
                 InvokeInst *NewII = InvokeInst::Create(ICalleeFunction, NormalDest, UnwindDest, NewArgsArr, "", insPt);
-                // // errs() << "3\n";
-                // PredBB->dump();
-                // OrigCallBB->dump();
-                // OrigTarBB->dump();
-                // NewCallBB->dump();
-                // NormalDest->dump();
-                // UnwindDest->dump();
-                // InvokePhiTrampoline->dump();
-
                 if (!noUse) {
-                    // // errs() << "!no use\n";
                     BasicBlock *InvokePhiTrampoline = BasicBlock::Create(C, "invoke.phi.trampoline", II->getParent()->getParent());
                     PHINode *phiForInvoke = PHINode::Create(CB->getType(), 2, "", InvokePhiTrampoline);
                     II->replaceAllUsesWith(phiForInvoke);
@@ -2247,7 +2108,6 @@ void InterFunctionFusion::extractPtrAndCtrlBitAtICall(Module &M) {
                     for (auto &PI : NormalDest->phis()) {
                         PI.replaceIncomingBlockWith(OrigCallBB, InvokePhiTrampoline);
                     }
-                    // NormalDest->
                     for (auto &PI : UnwindDest->phis()) {
                         PI.addIncoming(PI.getIncomingValueForBlock(OrigCallBB), NewCallBB);
                     }
@@ -2265,258 +2125,37 @@ void InterFunctionFusion::extractPtrAndCtrlBitAtICall(Module &M) {
                         PI.addIncoming(PI.getIncomingValueForBlock(CB->getParent()), NewCallBB);
                     }
                 }
-                // // errs() << "erase from NewCallBB\n";
-                // NewCallBB->getTerminator()->dump();
                 NewCallBB->getTerminator()->eraseFromParent();
-                // PredBB->dump();
-                // OrigCallBB->dump();
-                // OrigTarBB->dump();
-                // NewCallBB->dump();
-                // NormalDest->dump();
-                // UnwindDest->dump();
-                // InvokePhiTrampoline->dump();
             } else {
                 llvm_unreachable("Invalid opcode or unhandled case!");
             }
-            // // errs() << "CBUsers:\n";
-            // for (auto CBUser : CB->users()) {
-            //     CBUser->dump();
-            // }
-            // pack the arguments to a struct, each element is a pointer to the origin arg
-            // SmallVector<Type *, 8> ParamPointerType;
-            // vector<Value*> oldArgs(CB->arg_begin(), CB->arg_end());
-            // for (uint i = 0; i < oldArgs.size(); i++)
-            //     ParamPointerType.push_back(oldArgs.at(i)->getType()->getPointerTo());
-            // StructType * StructTy = StructType::get(C, ParamPointerType);
 
-            // AllocaInst *AllocStruct = new AllocaInst(StructTy, DL.getAllocaAddrSpace(), "ParamStruct", insPt);
-            // AllocStruct->setAlignment(DL.getPrefTypeAlignment(StructTy));
-
-            // fill struct contents with pointers to origin arg
-            // GetElementPtrInst * GEPI;
-            // //StoreInst *StoreI;
-            // AllocaInst *AllocPointer;
-            // for (uint i = 0; i < oldArgs.size(); i++) {
-            //     // struct.xxx = &argi
-            //     Value *Idx[2];
-            //     Idx[0] = Constant::getNullValue(Type::getInt32Ty(C));
-            //     Idx[1] = ConstantInt::get(Type::getInt32Ty(C), i);
-            //     GEPI = GetElementPtrInst::Create(StructTy, AllocStruct, Idx, "", insPt);
-            //     AllocPointer = new AllocaInst(oldArgs.at(i)->getType(), DL.getAllocaAddrSpace(), "", insPt);
-            //     AllocPointer->setAlignment(DL.getPrefTypeAlignment(oldArgs.at(i)->getType()));
-            //     new StoreInst(oldArgs.at(i), AllocPointer, insPt);
-            //     new StoreInst(AllocPointer, GEPI, insPt);
-            // }
-            // prepare arguments
-            // std::vector<Value *> NewArgs;
-            // NewArgs.push_back(AllocStruct);
-
-            // Type *retTy = CB->getType();
-            // AllocaInst *allocaRet;
-            // if (!retTy->isVoidTy()) {
-            //     allocaRet = new AllocaInst(retTy, DL.getAllocaAddrSpace(), "icall_ret", insPt);
-            // } else {
-            //     allocaRet = new AllocaInst(Int8PtrTy, DL.getAllocaAddrSpace(), "icall_ret", insPt);
-            // }
-            // allocaRet->setAlignment(DL.getPrefTypeAlignment(allocaRet->getAllocatedType()));
-            // NewArgs.push_back(allocaRet);
-            // NewArgs.push_back(AllocStruct);
-            // NewArgs.push_back(allocaRet);
-            // NewArgs.push_back(ctrlBit);
-
-            // ArrayRef<Value *> NewArgsArr(NewArgs);
-            // FunctionType *SPFunctionType = FunctionType::get(VoidTy,
-            //                                                 {AllocStruct->getType(), allocaRet->getType(),
-            //                                                 AllocStruct->getType(), allocaRet->getType(), Int8Ty}, false);
-            // Value *SPFunction = CastInst::CreatePointerCast(ptrVal, SPFunctionType->getPointerTo(), "", insPt);
-            // LoadInst *loadRetVal = nullptr;
-            // PHINode *phiForCall = nullptr;
-            //bool noUse = retTy->isVoidTy() || CB->user_empty();
-            // If the callbase is a callinst, we insert the loadinst after the new callinst.
-            // Then add a phi for orig call and new call.
-
-            // If the callbase is an invokeinst, we create a trampoline BB for a new load,
-            // and create a trampoline BB for a phi to accept orig call and new call.
-
-        }
-    }
-    // // errs() << "Main dump\n";
-    // MainFunction->dump();
-
-}
-
-void InterFunctionFusion::fixFusionAttribtes(Function *F) {
-    // FusionFunction attributes
-    for (const auto &Attr : F->getAttributes().getFnAttributes()) {
-        if (Attr.isStringAttribute()) {
-            if (Attr.getKindAsString() == "thunk")
-                continue;
-        }
-        else {
-            switch (Attr.getKindAsEnum()) {
-                case Attribute::Alignment:
-                case Attribute::AllocSize:
-                case Attribute::ArgMemOnly:
-                case Attribute::Builtin:
-                case Attribute::ByVal:
-                case Attribute::Convergent:
-                case Attribute::Dereferenceable:
-                case Attribute::DereferenceableOrNull:
-                case Attribute::InAlloca:
-                case Attribute::InReg:
-                case Attribute::InaccessibleMemOnly:
-                case Attribute::InaccessibleMemOrArgMemOnly:
-                case Attribute::JumpTable:
-                case Attribute::Naked:
-                case Attribute::Nest:
-                case Attribute::NoAlias:
-                case Attribute::NoBuiltin:
-                case Attribute::NoCapture:
-                case Attribute::NoReturn:
-                case Attribute::NoSync:
-                case Attribute::None:
-                case Attribute::NonNull:
-                case Attribute::ReadNone:
-                case Attribute::ReadOnly:
-                case Attribute::Returned:
-                case Attribute::ReturnsTwice:
-                case Attribute::SExt:
-                case Attribute::Speculatable:
-                case Attribute::StackAlignment:
-                case Attribute::StructRet:
-                case Attribute::SwiftError:
-                case Attribute::SwiftSelf:
-                case Attribute::WillReturn:
-                case Attribute::WriteOnly:
-                case Attribute::ZExt:
-                case Attribute::ImmArg:
-                case Attribute::EndAttrKinds:
-                    F->removeFnAttr(Attr.getKindAsEnum());
-                    break;
-                default:
-                    continue;
-            }
-        }
-    }
-
-    // FusionFunction ret attributes
-    for (const auto &Attr : F->getAttributes().getRetAttributes()) {
-        if (Attr.isStringAttribute()) {
-            if (Attr.getKindAsString() == "thunk")
-                continue;
-        }
-        else {
-            switch (Attr.getKindAsEnum()) {
-                case Attribute::Alignment:
-                case Attribute::AllocSize:
-                case Attribute::ArgMemOnly:
-                case Attribute::Builtin:
-                case Attribute::ByVal:
-                case Attribute::Convergent:
-                case Attribute::Dereferenceable:
-                case Attribute::DereferenceableOrNull:
-                case Attribute::InAlloca:
-                case Attribute::InReg:
-                case Attribute::InaccessibleMemOnly:
-                case Attribute::InaccessibleMemOrArgMemOnly:
-                case Attribute::JumpTable:
-                case Attribute::Naked:
-                case Attribute::Nest:
-                case Attribute::NoAlias:
-                case Attribute::NoBuiltin:
-                case Attribute::NoCapture:
-                case Attribute::NoReturn:
-                case Attribute::NoSync:
-                case Attribute::None:
-                case Attribute::NonNull:
-                case Attribute::ReadNone:
-                case Attribute::ReadOnly:
-                case Attribute::Returned:
-                case Attribute::ReturnsTwice:
-                case Attribute::SExt:
-                case Attribute::Speculatable:
-                case Attribute::StackAlignment:
-                case Attribute::StructRet:
-                case Attribute::SwiftError:
-                case Attribute::SwiftSelf:
-                case Attribute::WillReturn:
-                case Attribute::WriteOnly:
-                case Attribute::ZExt:
-                case Attribute::ImmArg:
-                case Attribute::EndAttrKinds:
-                    F->removeAttribute(AttributeList::ReturnIndex, Attr.getKindAsEnum());
-                    break;
-                default:
-                    continue;
-            }
-        }
-    }
-
-    // FusionFunction params attributes
-    for (unsigned i = 0; i < F->arg_size(); i++) {
-        for (const auto &Attr : F->getAttributes().getParamAttributes(i)) {
-            if (Attr.isStringAttribute()) {
-                if (Attr.getKindAsString() == "thunk")
-                    continue;
-            }
-            else {
-                switch (Attr.getKindAsEnum()) {
-                    case Attribute::Alignment:
-                    case Attribute::AllocSize:
-                    case Attribute::ArgMemOnly:
-                    case Attribute::Builtin:
-                    case Attribute::ByVal:
-                    case Attribute::Convergent:
-                    case Attribute::Dereferenceable:
-                    case Attribute::DereferenceableOrNull:
-                    case Attribute::InAlloca:
-                    case Attribute::InReg:
-                    case Attribute::InaccessibleMemOnly:
-                    case Attribute::InaccessibleMemOrArgMemOnly:
-                    case Attribute::JumpTable:
-                    case Attribute::Naked:
-                    case Attribute::Nest:
-                    case Attribute::NoAlias:
-                    case Attribute::NoBuiltin:
-                    case Attribute::NoCapture:
-                    case Attribute::NoReturn:
-                    case Attribute::NoSync:
-                    case Attribute::None:
-                    case Attribute::NonNull:
-                    case Attribute::ReadNone:
-                    case Attribute::ReadOnly:
-                    case Attribute::Returned:
-                    case Attribute::ReturnsTwice:
-                    case Attribute::SExt:
-                    case Attribute::Speculatable:
-                    case Attribute::StackAlignment:
-                    case Attribute::StructRet:
-                    case Attribute::SwiftError:
-                    case Attribute::SwiftSelf:
-                    case Attribute::WillReturn:
-                    case Attribute::WriteOnly:
-                    case Attribute::ZExt:
-                    case Attribute::ImmArg:
-                    case Attribute::EndAttrKinds:
-                        F->removeParamAttr(i, Attr.getKindAsEnum());
-                        break;
-                    default:
-                        continue;
-                }
-            }
         }
     }
 }
 
-// static RegisterPass<InterFunctionFusion> X("InterFunctionFusion", "InterFunctionFusion Pass");
-INITIALIZE_PASS_BEGIN(InterFunctionFusion, "InterFunctionFusion",
-                      "InterFunctionFusion Pass", false, false)
+void Fus::ffa(Function *F) {
+    for (const auto &At : F->getAttributes().getFnAttributes())
+        if (!At.isStringAttribute() && At.isAttributeInSet())
+            F->removeFnAttr(At.getKindAsEnum());
+    for (const auto &At : F->getAttributes().getRetAttributes())
+        if (!At.isStringAttribute() && At.isAttributeInSet())
+            F->removeAttribute(AttributeList::ReturnIndex, At.getKindAsEnum());
+    for (unsigned i = 0; i < F->arg_size(); i++)
+        for (const auto &At : F->getAttributes().getParamAttributes(i))
+            if (!At.isStringAttribute() && At.isAttributeInSet())
+                F->removeParamAttr(i, At.getKindAsEnum());
+}
+
+// static RegisterPass<Fus> X("Fus", "Fus Pass");
+INITIALIZE_PASS_BEGIN(Fus, "Fus",
+                      "Fus Pass", false, false)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(BlockFrequencyInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
-INITIALIZE_PASS_END(InterFunctionFusion, "InterFunctionFusion",
-                    "InterFunctionFusion Pass", false, false)
+INITIALIZE_PASS_END(Fus, "Fus",
+                    "Fus Pass", false, false)
 
-ModulePass *llvm::createInterFunctionFusionPass() {
-    return new InterFunctionFusion();
+ModulePass *llvm::createFusPass() {
+    return new Fus();
 }

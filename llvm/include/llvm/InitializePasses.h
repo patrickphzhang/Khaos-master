@@ -23,7 +23,7 @@ void initializeInterFunctionShuffleLoopPass(PassRegistry&);
 void initializeInterFunctionDeepFusionPreparePass(PassRegistry&);
 void initializeInterFunctionShuffleLoopMultiPass(PassRegistry&);
 void initializeInterFunctionShuffleBlockPass(PassRegistry&);
-void initializeInterFunctionFusionPass(PassRegistry&);
+void initializeFusPass(PassRegistry&);
 void initializeInterFunctionShufflePositionPass(PassRegistry&);
 void initializeInterFunctionShuffleOptPass(PassRegistry&);
 
