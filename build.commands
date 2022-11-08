@@ -1,0 +1,8 @@
+ninja
+#cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi;compiler-rt;lld" -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_BINUTILS_INCDIR=/home/xxx/CodeProt/binutils-2.24/include -DLLVM_USE_LINKER=gold ../llvm
+cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi;compiler-rt;lld" -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_BUILD_TYPE=Release ../source/Khaos/llvm/
+vs2019
+cmake -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi;compiler-rt;lld" -G "Visual Studio 16 2019" -DLLVM_TARGETS_TO_BUILD="X86" -A x64 -Thost=x64 ..\llvm -DCMAKE_SYSTEM_VERSION=10.0.16299.0
+cmake -DLLVM_ENABLE_PROJECTS="clang;compiler-rt" -DCMAKE_SYSTEM_VERSION=10.0.16299.0 -G "Visual Studio 16 2019" -DLLVM_TARGETS_TO_BUILD="X86" -A Win32 ..\llvm
+vs2017
+cmake -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi;compiler-rt;lld" -G "Visual Studio 15 2017" -DLLVM_TARGETS_TO_BUILD="X86" -A x64 -Thost=x64 ..\llvm

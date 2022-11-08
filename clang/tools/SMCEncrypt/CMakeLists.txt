@@ -1,0 +1,15 @@
+set(LLVM_LINK_COMPONENTS
+  CodeProtMid
+  )
+add_clang_executable(SMCEncrypt
+  SMCEncrypt_main.cpp
+  Cypher.cpp
+  ELFParser.cpp
+  PEParser.cpp
+  FileParser.cpp
+  )
+clang_target_link_libraries(SMCEncrypt
+  PRIVATE
+  clangBasic
+  clangDriver
+  )

@@ -1,0 +1,30 @@
+{
+    "SEH":[
+
+    ],
+
+    "GuardPageViolation":[
+
+    ],
+
+    "Obfuscation":[
+
+    ],
+
+    "InterFunctionShuffle":[
+	{"file":"add.cpp", "line":"20", "func":"add"},
+	{"file":"sub.cpp", "line":"10", "func":"sub"}
+    ],
+
+    "JunkCode":[
+
+    ],
+
+    "IntraFunctionShuffle":[
+
+    ],
+
+    "SMC":[
+    {"file":"toplev.c", "line":"4636", "func":"parse_options_and_default_flags"}
+    ]
+}
