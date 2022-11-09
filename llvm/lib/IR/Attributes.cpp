@@ -185,6 +185,8 @@ Attribute::getWithAllocSizeArgs(LLVMContext &Context, unsigned ElemSizeArg,
 
 bool Attribute::isAttributeInSet() const {
   if (!pImpl) return false;
+  if (pImpl->isStringAttribute())
+    return false;
   assert((isEnumAttribute() || isIntAttribute() || isTypeAttribute()) &&
          "Invalid attribute type to get the kind as an enum!");
   Attribute::AttrKind kind = pImpl->getKindAsEnum();

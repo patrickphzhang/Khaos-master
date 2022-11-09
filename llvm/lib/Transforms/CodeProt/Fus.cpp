@@ -2135,15 +2135,16 @@ void Fus::extractPtrAndCtrlBitAtICall(Module &M) {
 }
 
 void Fus::ffa(Function *F) {
-    for (const auto &At : F->getAttributes().getFnAttributes())
-        if (!At.isStringAttribute() && At.isAttributeInSet())
+    AttributeList Fa = F->getAttributes();
+    for (const auto &At : Fa.getFnAttributes())
+        if (At.isAttributeInSet())
             F->removeFnAttr(At.getKindAsEnum());
-    for (const auto &At : F->getAttributes().getRetAttributes())
-        if (!At.isStringAttribute() && At.isAttributeInSet())
+    for (const auto &At : Fa.getRetAttributes())
+        if (At.isAttributeInSet())
             F->removeAttribute(AttributeList::ReturnIndex, At.getKindAsEnum());
     for (unsigned i = 0; i < F->arg_size(); i++)
-        for (const auto &At : F->getAttributes().getParamAttributes(i))
-            if (!At.isStringAttribute() && At.isAttributeInSet())
+        for (const auto &At : Fa.getParamAttributes(i))
+            if (At.isAttributeInSet())
                 F->removeParamAttr(i, At.getKindAsEnum());
 }
 
