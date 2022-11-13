@@ -421,7 +421,7 @@ void tools::AddGoldPlugin(const ToolChain &ToolChain, const ArgList &Args,
       CmdArgs.push_back("-plugin-opt=-debugger-tune=gdb");
   }
 
-  // Codeprot : pass args to llvmgold.so
+  // Khaos : pass args to llvmgold.so
   for (const Arg *A : Args.filtered(options::OPT_mllvm)) {
     CmdArgs.push_back(Args.MakeArgString("-plugin-opt="
                                          + StringRef(A->getValue(0))));
@@ -702,8 +702,8 @@ collectSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
     }
   }
 
-  // Codeprot : automactical link compiler-rt
-  // Codeprot : libclang_rt.codeprot-x86_64.a
+  // Khaos : automactical link compiler-rt
+  // Khaos : libclang_rt.codeprot-x86_64.a
   // HelperStaticRuntimes.push_back("codeprot");
   for (const Arg *A : Args.filtered(options::OPT_mllvm)){
     if (!strcmp(A->getValue(0),"-enable-antidump")){

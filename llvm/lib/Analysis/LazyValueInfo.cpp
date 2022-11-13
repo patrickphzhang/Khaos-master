@@ -723,7 +723,7 @@ bool LazyValueInfoImpl::solveBlockValueNonLocal(ValueLatticeElement &BBLV,
     //   Val->dump();
     //   BB->getParent()->dump();
     // }
-    // CodeProt: Dangerous! We deleted this assert, which may cause serious issue.
+    // Khaos: Dangerous! We deleted this assert, which may cause serious issue.
     // assert(isa<Argument>(Val) && "Unknown live-in to the entry block");
     // Before giving up, see if we can prove the pointer non-null local to
     // this particular block.

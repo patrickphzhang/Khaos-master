@@ -178,7 +178,7 @@ bool InterFunctionShuffleBlock::runOnModule(Module &M) {
     //     }
     // }
 
-    // CodeProt: Extract block region
+    // Khaos: Extract block region
     SmallSetVector<BasicBlock *, 4> SinkBBCandidateSet;
     SmallSetVector<BasicBlock *, 8> SinkBBAllSet;
     SmallSetVector<BasicBlock *, 4> BBsToOutline;

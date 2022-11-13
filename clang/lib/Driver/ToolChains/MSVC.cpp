@@ -415,7 +415,7 @@ void visualstudio::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  // CodeProt : link compiler-rt libs 
+  // Khaos : link compiler-rt libs 
    for (const Arg *A : Args.filtered(options::OPT_mllvm)){
     if (!strcmp(A->getValue(0),"-dll")){
        CmdArgs.push_back(Args.MakeArgString("/dll"));

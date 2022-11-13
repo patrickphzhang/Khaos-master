@@ -61,7 +61,7 @@ enum BlockIDs {
 
   SYNC_SCOPE_NAMES_BLOCK_ID,
 
-  // CodeProt
+  // Khaos
   METADATA_CODEPROT_BLOCK_ID,
 };
 
@@ -340,7 +340,7 @@ enum MetadataCodes {
 };
 
 enum CPMetadata {
-  // CodeProt
+  // Khaos
   METADATA_CODEPROT_BLOCK = 1,   // [val]
 };
 

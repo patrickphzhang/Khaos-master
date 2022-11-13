@@ -218,7 +218,7 @@ doPromotion(Function *F, SmallPtrSetImpl<Argument *> &ArgsToPromote,
   Function *NF = Function::Create(NFTy, F->getLinkage(), F->getAddressSpace(),
                                   F->getName());
   NF->copyAttributesFrom(F);
-  // CodeProt : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
+  // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
   NF->setCreatedByCodeProt(F->isCreatedByCodeProt());
   NF->setOriginNameLength(F->getOriginNameLength());
 

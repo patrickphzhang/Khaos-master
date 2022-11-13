@@ -126,7 +126,7 @@
 #include <utility>
 #include <vector>
 
-//CodeProt
+// Khaos
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/Transforms/CodeProt/Utils.h"
 

@@ -650,7 +650,7 @@ DataFlowSanitizer::buildWrapperFunction(Function *F, StringRef NewFName,
   Function *NewF = Function::Create(NewFT, NewFLink, F->getAddressSpace(),
                                     NewFName, F->getParent());
   NewF->copyAttributesFrom(F);
-  // CodeProt : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
+  // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
   NewF->setCreatedByCodeProt(F->isCreatedByCodeProt());
   NewF->setOriginNameLength(F->getOriginNameLength());
   NewF->removeAttributes(
@@ -843,7 +843,7 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
         Function *NewF = Function::Create(NewFT, F.getLinkage(),
                                           F.getAddressSpace(), "", &M);
         NewF->copyAttributesFrom(&F);
-        // CodeProt : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
+        // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
         NewF->setCreatedByCodeProt(F.isCreatedByCodeProt());
         NewF->setOriginNameLength(F.getOriginNameLength());
         NewF->removeAttributes(

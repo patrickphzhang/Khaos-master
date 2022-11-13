@@ -518,7 +518,7 @@ void MCObjectFileInfo::initCOFFMCObjectFileInfo(const Triple &T) {
       SectionKind::getData());
 
 #ifdef _WIN32
-  //CodeProt
+  // Khaos
   PayloadSection = Ctx->getCOFFSection(".payload",
                                     COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
                                         COFF::IMAGE_SCN_MEM_READ |

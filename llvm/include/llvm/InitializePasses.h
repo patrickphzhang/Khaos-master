@@ -18,7 +18,7 @@ namespace llvm {
 
 class PassRegistry;
 
-// Codeprot
+// Khaos
 void initializeInterFunctionShuffleLoopPass(PassRegistry&);
 void initializeInterFunctionDeepFusionPreparePass(PassRegistry&);
 void initializeInterFunctionShuffleLoopMultiPass(PassRegistry&);

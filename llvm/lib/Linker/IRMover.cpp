@@ -657,7 +657,7 @@ Function *IRLinker::copyFunctionProto(const Function *SF) {
                        GlobalValue::ExternalLinkage, SF->getName(), &DstM);
   F->copyAttributesFrom(SF);
   F->setAttributes(mapAttributeTypes(F->getContext(), F->getAttributes()));
-  // CodeProt : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
+  // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
   F->setCreatedByCodeProt(SF->isCreatedByCodeProt());
   F->setOriginNameLength(SF->getOriginNameLength());
   return F;

@@ -286,7 +286,7 @@ Function* cloneFunctionDecl(Module &Dst, const Function &F,
     Function::Create(cast<FunctionType>(F.getValueType()),
                      F.getLinkage(), F.getName(), &Dst);
   NewF->copyAttributesFrom(&F);
-  // CodeProt : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
+  // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
   NewF->setCreatedByCodeProt(F.isCreatedByCodeProt());
   NewF->setOriginNameLength(F.getOriginNameLength());
 

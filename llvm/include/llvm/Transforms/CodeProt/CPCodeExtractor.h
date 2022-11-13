@@ -64,7 +64,7 @@ class Value;
     // If true, varargs functions can be extracted.
     bool AllowVarArgs;
 
-    // CodeProt
+    // Khaos
     bool ConsiderRecursive;
 
     // Bits of intermediate state computed at various phases of extraction.
@@ -116,7 +116,7 @@ class Value;
     /// Based on the blocks used when constructing the code extractor,
     /// determine whether it is eligible for extraction.
 
-    // CodeProt : Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+    // Khaos : Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
     // bool isEligible() const { return !Blocks.empty(); }
     bool isEligible(const ValueSet &inputs) const;
 
@@ -129,7 +129,7 @@ class Value;
     /// sets, before extraction occurs. These modifications won't have any
     /// significant impact on the cost however.
     
-    // CodeProt : Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+    // Khaos : Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
     // void findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
     //                        const ValueSet &Allocas) const;
     void findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
@@ -177,10 +177,10 @@ class Value;
     void severSplitPHINodesOfExits(const SmallPtrSetImpl<BasicBlock *> &Exits);
     void splitReturnBlocks();
     
-    // CodeProt : Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+    // Khaos : Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
     // Verify if args to the new function are valid. Returns false when any argument is invalid.
     bool validateInputDataDependencies(const ValueSet &inputs) const;
-    // CodeProt
+    // Khaos
     std::string replaceAll(std::string &str, const std::string &old_vale, const std::string &new_val);
 
     Function *constructFunction(ValueSet &inputs,
@@ -200,7 +200,7 @@ class Value;
                                          BasicBlock *newHeader,
                                          ValueSet &inputs, ValueSet &outputs);
 
-	// CodeProt
+	// Khaos
 	void findCPI(SmallVector<CatchPadInst*, 8> &vec);
 	void findLRIAndRFP(SmallVector<CatchPadInst*, 8> &CPIvec,
 		SmallVector<CallInst*, 8> &LRIvec,

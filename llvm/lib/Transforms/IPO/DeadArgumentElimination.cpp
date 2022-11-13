@@ -165,7 +165,7 @@ bool DeadArgumentEliminationPass::DeleteDeadVarargs(Function &Fn) {
   // Create the new function body and insert it into the module...
   Function *NF = Function::Create(NFTy, Fn.getLinkage(), Fn.getAddressSpace());
   NF->copyAttributesFrom(&Fn);
-  // CodeProt : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
+  // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
   NF->setCreatedByCodeProt(Fn.isCreatedByCodeProt());
   NF->setOriginNameLength(Fn.getOriginNameLength());
   NF->setComdat(Fn.getComdat());
@@ -866,7 +866,7 @@ bool DeadArgumentEliminationPass::RemoveDeadStuffFromFunction(Function *F) {
 
   // Create the new function body and insert it into the module...
   Function *NF = Function::Create(NFTy, F->getLinkage(), F->getAddressSpace());
-  // CodeProt : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
+  // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
   NF->setCreatedByCodeProt(F->isCreatedByCodeProt());
   NF->setOriginNameLength(F->getOriginNameLength());
   NF->copyAttributesFrom(F);

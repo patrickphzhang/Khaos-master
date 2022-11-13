@@ -276,7 +276,7 @@ MCSection *TargetLoweringObjectFile::getSectionForJumpTable(
 }
 
 #ifdef _WIN32
-//CodeProt
+// Khaos
 MCSection *TargetLoweringObjectFile::getSectionForPayload(
     const Function &F, const TargetMachine &TM) const {
   return PayloadSection;

@@ -68,7 +68,7 @@ public:
   using const_arg_iterator = const Argument *;
 
 private:
-  // CodeProt
+  // Khaos
   bool CreatedByCodeProt = false;
   uint OriginNameLength = 0;
   // Important things that make up a function!
@@ -108,7 +108,7 @@ public:
     return getSubclassDataFromValue() & (1<<0);
   }
 
-  // CodeProt
+  // Khaos
   bool isCreatedByCodeProt() const { return CreatedByCodeProt; }
 
   void setCreatedByCodeProt(bool CP) { CreatedByCodeProt = CP; }

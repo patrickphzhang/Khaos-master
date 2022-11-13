@@ -1337,7 +1337,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
     Vals.push_back(addToStrtab(F.getPartition()));
     Vals.push_back(F.getPartition().size());
 
-    // CodeProt
+    // Khaos
     Vals.push_back(F.isCreatedByCodeProt());
     // errs() << "pushing getOriginNameLength\n";
     Vals.push_back(F.getOriginNameLength());

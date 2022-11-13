@@ -1501,7 +1501,7 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   config->debugSymtab = debug == DebugKind::Symtab;
 
   config->mapFile = getMapFile(args);
-  // CodeProt
+  // Khaos
   config->doGC = true;
   config->doICF = true;
   if (config->incremental && args.hasArg(OPT_profile)) {

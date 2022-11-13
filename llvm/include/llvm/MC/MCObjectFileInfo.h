@@ -57,7 +57,7 @@ protected:
   /// Section directive for standard data.
   MCSection *DataSection;
 
-  //CodeProt
+  // Khaos
   /// Section directive for IntraFunctionShuffle.
   MCSection *PayloadSection;
   MCSection *SMCSection;
@@ -242,7 +242,7 @@ public:
 
   MCSection *getTextSection() const { return TextSection; }
   MCSection *getDataSection() const { return DataSection; }
-  //CodeProt
+  // Khaos
   MCSection *getPayloadSection() const { return PayloadSection; }
   MCSection *getSMCSection() const { return SMCSection; }
   MCSection *getBSSSection() const { return BSSSection; }

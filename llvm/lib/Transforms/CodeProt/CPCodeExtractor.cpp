@@ -237,7 +237,7 @@ CPCodeExtractor::CPCodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs,
                                      /* AllowAlloca */ false)),
       Suffix(Suffix) {}
 
-// CodeProt
+// Khaos
 std::string CPCodeExtractor::replaceAll(std::string &str, const std::string &old_val, const std::string &new_val) {
   while (true) {
     std::string::size_type pos(0);
@@ -503,7 +503,7 @@ void CPCodeExtractor::findAllocas(ValueSet &SinkCands, ValueSet &HoistCands,
   }
 }
 
-// CodeProt: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+// Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
 bool CPCodeExtractor::isEligible(const ValueSet &inputs) const {
 	if (Blocks.empty()) return false;
 	BasicBlock *Header = *Blocks.begin();
@@ -532,7 +532,7 @@ bool CPCodeExtractor::isEligible(const ValueSet &inputs) const {
 
 
 
-// CodeProt: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+// Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
 // void CPCodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
 //                                       const ValueSet &SinkCands) const {
 void CPCodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
@@ -548,7 +548,7 @@ void CPCodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
           Inputs.insert(V);
       }
 
-      // CodeProt: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+      // Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
 	    if (InputsOnly) return;
 
       for (User *U : II.users())
@@ -687,7 +687,7 @@ Function *CPCodeExtractor::constructFunction(ValueSet &inputs,
 
   std::vector<Type *> paramTy;
   
-  // CodeProt
+  // Khaos
   LLVMContext &Context = M->getContext();
   SmallVector<CatchPadInst*, 8> CatchPadInstVector;
   SmallVector<CallInst*, 8> LocalRecoverCallInstVector;
@@ -745,7 +745,7 @@ Function *CPCodeExtractor::constructFunction(ValueSet &inputs,
       Suffix.empty()
           ? (header->getName().empty() ? "extracted" : header->getName().str())
           : Suffix;
-  // CodeProt : change '.' in newFunction to '_'
+  // Khaos : change '.' in newFunction to '_'
   std::string oldFunctionName = oldFunction->getName().str();
   oldFunctionName = replaceAll(oldFunctionName, ".", "_");
   oldFunctionName = replaceAll(oldFunctionName, "-", "_");
@@ -842,7 +842,7 @@ Function *CPCodeExtractor::constructFunction(ValueSet &inputs,
     newFunction->addFnAttr(Attr);
   }
 
-  // CodeProt
+  // Khaos
   if (countOfLocalRecover) {
 	  Instruction *branchInRoot = &(newRootNode->getInstList().back());
 	  
@@ -908,7 +908,7 @@ Function *CPCodeExtractor::constructFunction(ValueSet &inputs,
           I->getParent()->getParent() == oldFunction)
         I->replaceUsesOfWith(header, newHeader);
 
-  // CodeProt
+  // Khaos
   Constant *ParentI8Fn = ConstantExpr::getBitCast(newFunction, Type::getInt8PtrTy(Context));
   for (int i = 0; i < countOfRecoverFp; i++) {
 	  CallInst *RFP = RecoverFpCallInstVector[i];
@@ -990,7 +990,7 @@ static void insertLifetimeMarkersSurroundingCall(
   }
 }
 
-// CodeProt
+// Khaos
 void CPCodeExtractor::findCPI(SmallVector<CatchPadInst*, 8> &vec) {
 	for (BasicBlock *BB : Blocks) {
 		for (Instruction &II : *BB) {
@@ -1048,7 +1048,7 @@ void CPCodeExtractor::findLRIAndRFP(SmallVector<CatchPadInst*, 8> &CPIvec,
 	}
 }
 
-// CodeProt
+// Khaos
 AllocaInst *CPCodeExtractor::findEscapeAlloca(CallInst *callInst) {
 	// Get the idx of localrecover, which points to the alloca in localescape.
 	ConstantInt *CINT = dyn_cast<ConstantInt>(callInst->getOperand(2));
@@ -1344,15 +1344,15 @@ void CPCodeExtractor::calculateNewCallTerminatorWeights(
 }
 
 Function *CPCodeExtractor::extractCodeRegion(bool ConsiderRecursive) {
-  // CodeProt: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+  // Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
   ValueSet inputs, outputs, SinkingCands, HoistingCands;
   findInputsOutputs(inputs, outputs, SinkingCands, true);
 
-  // CodeProt: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+  // Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
   // if (!isEligible())
   if (!isEligible(inputs))
     return nullptr;
-  // CodeProt: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+  // Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
   inputs.clear();
 
   // Assumption: this is a single-entry code region, and the header is the first
@@ -1394,7 +1394,7 @@ Function *CPCodeExtractor::extractCodeRegion(bool ConsiderRecursive) {
   severSplitPHINodesOfEntry(header);
   severSplitPHINodesOfExits(ExitBlocks);
 
-  // CodeProt: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+  // Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
   // Find inputs to, outputs from the code region.
   findInputsOutputs(inputs, outputs, SinkingCands);
   if (!validateInputDataDependencies(inputs)) {
@@ -1544,14 +1544,14 @@ Function *CPCodeExtractor::extractCodeRegion(bool ConsiderRecursive) {
   LLVM_DEBUG(if (verifyFunction(*oldFunction))
              report_fatal_error("verification of oldFunction failed!"));
   
-  // CodeProt: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+  // Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
   LLVM_DEBUG(if (!validateInputDataDependencies(inputs))
 	  report_fatal_error("verification of newFunction args failed!"));
 
   return newFunction;
 }
 
-// CodeProt: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
+// Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
 bool CPCodeExtractor::validateInputDataDependencies(const ValueSet &inputs) const {
 	for (const Value *Arg : inputs) {
 		Type *Ty = Arg->getType();

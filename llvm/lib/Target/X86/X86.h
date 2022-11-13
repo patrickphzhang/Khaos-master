@@ -27,7 +27,7 @@ class X86RegisterBankInfo;
 class X86Subtarget;
 class X86TargetMachine;
 
-// Codeprot
+// Khaos
 FunctionPass *createDeepFusionLevel1Pass();
 
 /// This pass converts a legalized DAG into a X86-specific DAG, ready for

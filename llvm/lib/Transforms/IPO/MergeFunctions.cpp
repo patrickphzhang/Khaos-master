@@ -740,7 +740,7 @@ void MergeFunctions::writeThunk(Function *F, Function *G) {
                << G->getName() << "()\n");
   } else {
     NewG->copyAttributesFrom(G);
-    // CodeProt : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
+    // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
     NewG->setCreatedByCodeProt(G->isCreatedByCodeProt());
     NewG->setOriginNameLength(G->getOriginNameLength());
     NewG->takeName(G);
@@ -815,7 +815,7 @@ void MergeFunctions::mergeTwoFunctions(Function *F, Function *G) {
     Function *NewF = Function::Create(F->getFunctionType(), F->getLinkage(),
                                       F->getAddressSpace(), "", F->getParent());
     NewF->copyAttributesFrom(F);
-    // CodeProt : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
+    // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
     NewF->setCreatedByCodeProt(F->isCreatedByCodeProt());
     NewF->setOriginNameLength(F->getOriginNameLength());
     NewF->takeName(F);

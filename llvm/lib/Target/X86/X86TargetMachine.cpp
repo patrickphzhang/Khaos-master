@@ -49,7 +49,7 @@
 #include <memory>
 #include <string>
 
-// CodeProt
+// Khaos
 #include "llvm/Transforms/CodeProt/Utils.h"
 
 using namespace llvm;

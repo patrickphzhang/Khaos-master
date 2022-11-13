@@ -46,7 +46,7 @@
 #include "llvm/Transforms/Vectorize.h"
 #include "llvm/Transforms/Vectorize/LoopVectorize.h"
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
-// CodeProt
+// Khaos
 #include "llvm/Transforms/CodeProt/Utils.h"
 
 using namespace llvm;
@@ -815,7 +815,7 @@ void PassManagerBuilder::populateModulePassManager(
     MPM.add(createNameAnonGlobalPass());
   }
 
-  // CodeProt
+  // Khaos
   if (EnableInterFunctionShufflePass) {
     MPM.add(createInterFunctionShuffleLoopMultiPass());
     MPM.add(createInterFunctionShuffleBlockPass());
@@ -841,7 +841,7 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
   // whole-program devirtualization and bitset lowering.
   PM.add(createGlobalDCEPass());
 
-  // CodeProt
+  // Khaos
   if (EnableFus) {
       PM.add(createInterFunctionPreparePass());
       if (LevelDeepFusion > 1) {

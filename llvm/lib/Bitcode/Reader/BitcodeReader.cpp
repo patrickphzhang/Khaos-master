@@ -3228,7 +3228,7 @@ Error BitcodeReader::parseFunctionRecord(ArrayRef<uint64_t> Record) {
   Func->setLinkage(getDecodedLinkage(RawLinkage));
   Func->setAttributes(getAttributes(Record[4]));
 
-  // CodeProt
+  // Khaos
   Func->setCreatedByCodeProt(Record[19]);
   // errs() << "reading OriginNameLength\n";
   // errs() << "Record.size(): " << Record.size() << "\n";

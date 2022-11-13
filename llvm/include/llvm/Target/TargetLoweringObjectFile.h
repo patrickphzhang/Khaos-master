@@ -116,7 +116,7 @@ public:
   virtual MCSection *getSectionForJumpTable(const Function &F,
                                             const TargetMachine &TM) const;
 #ifdef _WIN32
-  //CodeProt
+  // Khaos
   virtual MCSection *getSectionForPayload(const Function &F,
                                             const TargetMachine &TM) const;
   virtual MCSection *getSectionForSMC(const Function &F,
