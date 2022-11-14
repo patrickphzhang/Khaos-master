@@ -1,4 +1,4 @@
-//===- CPCodeExtractor.cpp - Pull code region into a new function -----------===//
+//===- KhaosCodeExtractor.cpp - Pull code region into a new function -----------===//
 //
 // 
 // 
@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/CodeProt/CPCodeExtractor.h"
+#include "llvm/Transforms/CodeProt/KhaosCodeExtractor.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Optional.h"
@@ -216,7 +216,7 @@ buildExtractionBlockSet(ArrayRef<BasicBlock *> BBs, DominatorTree *DT,
   return Result;
 }
 
-CPCodeExtractor::CPCodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT,
+KhaosCodeExtractor::KhaosCodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT,
                              bool AggregateArgs, BlockFrequencyInfo *BFI,
                              BranchProbabilityInfo *BPI, AssumptionCache *AC,
                              bool AllowVarArgs, bool AllowAlloca,
@@ -226,7 +226,7 @@ CPCodeExtractor::CPCodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT,
       Blocks(buildExtractionBlockSet(BBs, DT, AllowVarArgs, AllowAlloca)),
       Suffix(Suffix) {}
 
-CPCodeExtractor::CPCodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs,
+KhaosCodeExtractor::KhaosCodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs,
                              BlockFrequencyInfo *BFI,
                              BranchProbabilityInfo *BPI, AssumptionCache *AC,
                              std::string Suffix)
@@ -238,7 +238,7 @@ CPCodeExtractor::CPCodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs,
       Suffix(Suffix) {}
 
 // Khaos
-std::string CPCodeExtractor::replaceAll(std::string &str, const std::string &old_val, const std::string &new_val) {
+std::string KhaosCodeExtractor::replaceAll(std::string &str, const std::string &old_val, const std::string &new_val) {
   while (true) {
     std::string::size_type pos(0);
     if((pos = str.find(old_val)) != std::string::npos) {
@@ -289,7 +289,7 @@ static BasicBlock *getCommonExitBlock(const SetVector<BasicBlock *> &Blocks) {
   return CommonExitBlock;
 }
 
-bool CPCodeExtractor::isLegalToShrinkwrapLifetimeMarkers(
+bool KhaosCodeExtractor::isLegalToShrinkwrapLifetimeMarkers(
     Instruction *Addr) const {
   AllocaInst *AI = cast<AllocaInst>(Addr->stripInBoundsConstantOffsets());
   Function *Func = (*Blocks.begin())->getParent();
@@ -337,7 +337,7 @@ bool CPCodeExtractor::isLegalToShrinkwrapLifetimeMarkers(
 }
 
 BasicBlock *
-CPCodeExtractor::findOrCreateBlockForHoisting(BasicBlock *CommonExitBlock) {
+KhaosCodeExtractor::findOrCreateBlockForHoisting(BasicBlock *CommonExitBlock) {
   BasicBlock *SinglePredFromOutlineRegion = nullptr;
   assert(!Blocks.count(CommonExitBlock) &&
          "Expect a block outside the region!");
@@ -387,8 +387,8 @@ CPCodeExtractor::findOrCreateBlockForHoisting(BasicBlock *CommonExitBlock) {
   return CommonExitBlock;
 }
 
-CPCodeExtractor::LifetimeMarkerInfo
-CPCodeExtractor::getLifetimeMarkers(Instruction *Addr,
+KhaosCodeExtractor::LifetimeMarkerInfo
+KhaosCodeExtractor::getLifetimeMarkers(Instruction *Addr,
                                   BasicBlock *ExitBlock) const {
   LifetimeMarkerInfo Info;
 
@@ -426,7 +426,7 @@ CPCodeExtractor::getLifetimeMarkers(Instruction *Addr,
   return Info;
 }
 
-void CPCodeExtractor::findAllocas(ValueSet &SinkCands, ValueSet &HoistCands,
+void KhaosCodeExtractor::findAllocas(ValueSet &SinkCands, ValueSet &HoistCands,
                                 BasicBlock *&ExitBlock) const {
   Function *Func = (*Blocks.begin())->getParent();
   ExitBlock = getCommonExitBlock(Blocks);
@@ -504,7 +504,7 @@ void CPCodeExtractor::findAllocas(ValueSet &SinkCands, ValueSet &HoistCands,
 }
 
 // Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
-bool CPCodeExtractor::isEligible(const ValueSet &inputs) const {
+bool KhaosCodeExtractor::isEligible(const ValueSet &inputs) const {
 	if (Blocks.empty()) return false;
 	BasicBlock *Header = *Blocks.begin();
 	Function *F = Header->getParent();
@@ -533,9 +533,9 @@ bool CPCodeExtractor::isEligible(const ValueSet &inputs) const {
 
 
 // Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
-// void CPCodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
+// void KhaosCodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
 //                                       const ValueSet &SinkCands) const {
-void CPCodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
+void KhaosCodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
                                       const ValueSet &SinkCands, bool InputsOnly) const {
   for (BasicBlock *BB : Blocks) {
     // If a used value is defined outside the region, it's an input.  If an
@@ -560,7 +560,7 @@ void CPCodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
   }
 }
 
-void CPCodeExtractor::severSplitPHINodesOfEntry(BasicBlock *&Header) {
+void KhaosCodeExtractor::severSplitPHINodesOfEntry(BasicBlock *&Header) {
   unsigned NumPredsFromRegion = 0;
   unsigned NumPredsOutsideRegion = 0;
 
@@ -611,7 +611,7 @@ void CPCodeExtractor::severSplitPHINodesOfEntry(BasicBlock *&Header) {
   }
 }
 
-void CPCodeExtractor::severSplitPHINodesOfExits(
+void KhaosCodeExtractor::severSplitPHINodesOfExits(
     const SmallPtrSetImpl<BasicBlock *> &Exits) {
   for (BasicBlock *ExitBB : Exits) {
     BasicBlock *NewBB = nullptr;
@@ -650,7 +650,7 @@ void CPCodeExtractor::severSplitPHINodesOfExits(
   }
 }
 
-void CPCodeExtractor::splitReturnBlocks() {
+void KhaosCodeExtractor::splitReturnBlocks() {
   for (BasicBlock *Block : Blocks)
     if (ReturnInst *RI = dyn_cast<ReturnInst>(Block->getTerminator())) {
       BasicBlock *New =
@@ -668,7 +668,7 @@ void CPCodeExtractor::splitReturnBlocks() {
     }
 }
 
-Function *CPCodeExtractor::constructFunction(ValueSet &inputs,
+Function *KhaosCodeExtractor::constructFunction(ValueSet &inputs,
                                            ValueSet &outputs,
                                            BasicBlock *header,
                                            BasicBlock *newRootNode,
@@ -991,7 +991,7 @@ static void insertLifetimeMarkersSurroundingCall(
 }
 
 // Khaos
-void CPCodeExtractor::findCPI(SmallVector<CatchPadInst*, 8> &vec) {
+void KhaosCodeExtractor::findCPI(SmallVector<CatchPadInst*, 8> &vec) {
 	for (BasicBlock *BB : Blocks) {
 		for (Instruction &II : *BB) {
 			if (CatchPadInst *CPI = dyn_cast<CatchPadInst>(&II)) {
@@ -1012,7 +1012,7 @@ void CPCodeExtractor::findCPI(SmallVector<CatchPadInst*, 8> &vec) {
 	}
 }
 
-void CPCodeExtractor::findLRIAndRFP(SmallVector<CatchPadInst*, 8> &CPIvec,
+void KhaosCodeExtractor::findLRIAndRFP(SmallVector<CatchPadInst*, 8> &CPIvec,
 		SmallVector<CallInst*, 8> &LRIvec,
 		SmallVector<CallInst*, 8> &RFPvec) {
 	while (!CPIvec.empty()) {
@@ -1049,7 +1049,7 @@ void CPCodeExtractor::findLRIAndRFP(SmallVector<CatchPadInst*, 8> &CPIvec,
 }
 
 // Khaos
-AllocaInst *CPCodeExtractor::findEscapeAlloca(CallInst *callInst) {
+AllocaInst *KhaosCodeExtractor::findEscapeAlloca(CallInst *callInst) {
 	// Get the idx of localrecover, which points to the alloca in localescape.
 	ConstantInt *CINT = dyn_cast<ConstantInt>(callInst->getOperand(2));
 	int AllocaIdx = CINT->getSExtValue();
@@ -1070,7 +1070,7 @@ AllocaInst *CPCodeExtractor::findEscapeAlloca(CallInst *callInst) {
 	return nullptr;
 }
 
-CallInst *CPCodeExtractor::emitCallAndSwitchStatement(Function *newFunction,
+CallInst *KhaosCodeExtractor::emitCallAndSwitchStatement(Function *newFunction,
                                                     BasicBlock *codeReplacer,
                                                     ValueSet &inputs,
                                                     ValueSet &outputs) {
@@ -1288,7 +1288,7 @@ CallInst *CPCodeExtractor::emitCallAndSwitchStatement(Function *newFunction,
   return call;
 }
 
-void CPCodeExtractor::moveCodeToFunction(Function *newFunction) {
+void KhaosCodeExtractor::moveCodeToFunction(Function *newFunction) {
   Function *oldFunc = (*Blocks.begin())->getParent();
   Function::BasicBlockListType &oldBlocks = oldFunc->getBasicBlockList();
   Function::BasicBlockListType &newBlocks = newFunction->getBasicBlockList();
@@ -1305,7 +1305,7 @@ void CPCodeExtractor::moveCodeToFunction(Function *newFunction) {
   }
 }
 
-void CPCodeExtractor::calculateNewCallTerminatorWeights(
+void KhaosCodeExtractor::calculateNewCallTerminatorWeights(
     BasicBlock *CodeReplacer,
     DenseMap<BasicBlock *, BlockFrequency> &ExitWeights,
     BranchProbabilityInfo *BPI) {
@@ -1343,7 +1343,7 @@ void CPCodeExtractor::calculateNewCallTerminatorWeights(
       MDBuilder(TI->getContext()).createBranchWeights(BranchWeights));
 }
 
-Function *CPCodeExtractor::extractCodeRegion(bool ConsiderRecursive) {
+Function *KhaosCodeExtractor::extractCodeRegion(bool ConsiderRecursive) {
   // Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
   ValueSet inputs, outputs, SinkingCands, HoistingCands;
   findInputsOutputs(inputs, outputs, SinkingCands, true);
@@ -1552,7 +1552,7 @@ Function *CPCodeExtractor::extractCodeRegion(bool ConsiderRecursive) {
 }
 
 // Khaos: Fix PR40710 - Outlined Function has token parameter but isn't an intrinsic.
-bool CPCodeExtractor::validateInputDataDependencies(const ValueSet &inputs) const {
+bool KhaosCodeExtractor::validateInputDataDependencies(const ValueSet &inputs) const {
 	for (const Value *Arg : inputs) {
 		Type *Ty = Arg->getType();
 		if (!Ty->isFirstClassType() || Ty->isMetadataTy() || Ty->isTokenTy())

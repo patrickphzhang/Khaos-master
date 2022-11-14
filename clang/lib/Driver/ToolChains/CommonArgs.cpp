@@ -703,32 +703,12 @@ collectSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
   }
 
   // Khaos : automactical link compiler-rt
-  // Khaos : libclang_rt.codeprot-x86_64.a
-  // HelperStaticRuntimes.push_back("codeprot");
+  // Khaos : libclang_rt-x86_64.a
   for (const Arg *A : Args.filtered(options::OPT_mllvm)){
-    if (!strcmp(A->getValue(0),"-enable-antidump")){
-      StaticRuntimes.push_back("codeprot.antidump");
-    }
-    if (!strcmp(A->getValue(0),"-enable-antivm")){
-      StaticRuntimes.push_back("codeprot.antivm");
-    }
-    if (!strcmp(A->getValue(0),"-enable-seh")){
-      StaticRuntimes.push_back("codeprot.seh");
-    }
-    if (!strcmp(A->getValue(0),"-enable-intrashuffle")){
-      StaticRuntimes.push_back("codeprot.deobfuscate");
-    }
-    if (!strcmp(A->getValue(0),"-enable-smc") || !strcmp(A->getValue(0),"-enable-smc-func") || !strcmp(A->getValue(0),"-enable-smc-data")){
-      StaticRuntimes.push_back("codeprot.smc");
-    }
-    if (!strcmp(A->getValue(0),"-enable-guardpage")) {
-      StaticRuntimes.push_back("codeprot.pageguard");
-    }
     // Fusion
     // if (!strcmp(A->getValue(0),"-enable-interfusion")) {
-    //   StaticRuntimes.push_back("codeprot.fusion");
+    //   StaticRuntimes.push_back(".fusion");
     // }
-    
   }
   
 }

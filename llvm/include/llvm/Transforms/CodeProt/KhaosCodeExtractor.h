@@ -1,4 +1,4 @@
-//===- Transform/CODEPROT/CPCPCodeExtractor.h - CPCode extraction util ---*- C++ -*-===//
+//===- Transform/KhaosCodeExtractor.h - KhaosCode extraction util ---*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_CODEPROT_CODEEXTRACTOR_H
-#define LLVM_TRANSFORMS_CODEPROT_CODEEXTRACTOR_H
+#ifndef LLVM_TRANSFORMS_CODEEXTRACTOR_H
+#define LLVM_TRANSFORMS_CODEEXTRACTOR_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -51,7 +51,7 @@ class Value;
   ///    function to arguments.
   /// 3) Add allocas for any scalar outputs, adding all of the outputs' allocas
   ///    as arguments, and inserting stores to the arguments for any scalars.
-  class CPCodeExtractor {
+  class KhaosCodeExtractor {
     using ValueSet = SetVector<Value *>;
 
     // Various bits of state computed on construction.
@@ -88,7 +88,7 @@ class Value;
     /// code is extracted, including vastart. If AllowAlloca is true, then
     /// extraction of blocks containing alloca instructions would be possible,
     /// however code extractor won't validate whether extraction is legal.
-    CPCodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT = nullptr,
+    KhaosCodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT = nullptr,
                   bool AggregateArgs = false, BlockFrequencyInfo *BFI = nullptr,
                   BranchProbabilityInfo *BPI = nullptr,
                   AssumptionCache *AC = nullptr,
@@ -99,7 +99,7 @@ class Value;
     ///
     /// Behaves just like the generic code sequence constructor, but uses the
     /// block sequence of the loop.
-    CPCodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs = false,
+    KhaosCodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs = false,
                   BlockFrequencyInfo *BFI = nullptr,
                   BranchProbabilityInfo *BPI = nullptr,
                   AssumptionCache *AC = nullptr,
@@ -107,7 +107,7 @@ class Value;
 
     /// Perform the extraction, returning the new function.
     ///
-    /// Returns zero when called on a CPCodeExtractor instance where isEligible
+    /// Returns zero when called on a KhaosCodeExtractor instance where isEligible
     /// returns false.
     Function *extractCodeRegion(bool ConsiderRecursive = false);
 
@@ -212,4 +212,4 @@ class Value;
 
 } // end namespace llvm
 
-#endif // LLVM_TRANSFORMS_CODEPROT_CODEEXTRACTOR_H
+#endif // LLVM_TRANSFORMS_CODEEXTRACTOR_H

@@ -9,7 +9,7 @@ add_llvm_library( LLVMCodeProtMid
   InterFunctionShuffleBlock.cpp
   InterFunctionShuffleLoop.cpp
   InterFunctionShufflePosition.cpp
-  CPCodeExtractor.cpp
+  KhaosCodeExtractor.cpp
   CryptoUtils.cpp
   SplitBasicBlocks.cpp
   HarmnessAnalysis.cpp

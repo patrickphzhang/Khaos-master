@@ -15,7 +15,7 @@
 
 
 #include "llvm/Transforms/CodeProt/Utils.h"
-#include "llvm/Transforms/CodeProt/CPCodeExtractor.h"
+#include "llvm/Transforms/CodeProt/KhaosCodeExtractor.h"
 
 #define DEBUG_TYPE "loop"
 
@@ -156,7 +156,7 @@ bool InterFunctionShuffleLoop::runOnLoop(Loop *L, LPPassManager &LPM) {
         AssumptionCache *AC = nullptr;
         if (auto *ACT = getAnalysisIfAvailable<AssumptionCacheTracker>())
           AC = ACT->lookupAssumptionCache(*L->getHeader()->getParent());
-        CPCodeExtractor Extractor(DT, *L, false, nullptr, nullptr, AC);
+        KhaosCodeExtractor Extractor(DT, *L, false, nullptr, nullptr, AC);
         Function *ExtractedFunc = Extractor.extractCodeRegion();
         if (ExtractedFunc != nullptr) {
           Changed = true;

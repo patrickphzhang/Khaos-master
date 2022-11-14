@@ -66,12 +66,6 @@ namespace llvm {
     extern std::set<Function*> FunctionsWithLoop;
 
     //Global variables for IntraShuffle
-    extern std::map<MachineBasicBlock*, unsigned int> PayloadMap;
-    extern unsigned int GlobalPayloadIndex;
-    extern std::string PayloadSectionString;
-    extern std::string SMCSectionString;
-    extern std::vector<GlobalVariable *> EncryptedGlobalVariables;
-    extern std::vector<int> EncryptedGVSize;
     class ModulePass;
     extern ModulePass *createParseJsonPass();
     extern ModulePass *createFusPass();

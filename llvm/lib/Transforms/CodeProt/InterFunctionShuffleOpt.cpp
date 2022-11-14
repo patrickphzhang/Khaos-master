@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/CodeProt/Utils.h"
-#include "llvm/Transforms/CodeProt/CPCodeExtractor.h"
+#include "llvm/Transforms/CodeProt/KhaosCodeExtractor.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Analysis/BlockFrequencyInfo.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
@@ -304,7 +304,7 @@ bool InterFunctionShuffleOpt::extractRegion(SmallVector<BasicBlock*, 8> BBsToExt
     uint OriginNameLength = 0;
     if (BBsToExtract.size() > 0)
             OriginNameLength = (*BBsToExtract.begin())->getParent()->getName().size();
-    Function *ExtractedFunc = CPCodeExtractor(BBsToExtract).extractCodeRegion();
+    Function *ExtractedFunc = KhaosCodeExtractor(BBsToExtract).extractCodeRegion();
     if (!ExtractedFunc)
     {
         LLVM_DEBUG(outs() << "Failed to extract for group '"

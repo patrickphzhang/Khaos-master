@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/CodeProt/Utils.h"
-#include "llvm/Transforms/CodeProt/CPCodeExtractor.h"
+#include "llvm/Transforms/CodeProt/KhaosCodeExtractor.h"
 
 #define DEBUG_TYPE "block"
 
@@ -333,7 +333,7 @@ bool InterFunctionShuffleBlock::runOnModule(Module &M) {
         uint OriginNameLength = 0;
         if (BlocksToExtractVec.size() > 0)
             OriginNameLength = (*BBs.begin())->getParent()->getName().size();
-        Function *ExtractedFunc = CPCodeExtractor(BlocksToExtractVec).extractCodeRegion(DirectRecursive);
+        Function *ExtractedFunc = KhaosCodeExtractor(BlocksToExtractVec).extractCodeRegion(DirectRecursive);
         if (ExtractedFunc) {
             LLVM_DEBUG(outs() << "Extracted group '" << (*BBs.begin())->getName()
                     << "' in: " << ExtractedFunc->getName() << '\n');
