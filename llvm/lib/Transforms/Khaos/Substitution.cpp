@@ -32,10 +32,6 @@ ObfTimes("sub_loop",
 // Stats
 STATISTIC(Add, "Add substitued");
 STATISTIC(Sub, "Sub substitued");
-// STATISTIC(Mul,  "Mul substitued");
-// STATISTIC(Div,  "Div substitued");
-// STATISTIC(Rem,  "Rem substitued");
-// STATISTIC(Shi,  "Shift substitued");
 STATISTIC(And, "And substitued");
 STATISTIC(Or, "Or substitued");
 STATISTIC(Xor, "Xor substitued");
@@ -44,7 +40,7 @@ namespace {
     struct Substitution : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
         const string KhaosName = KHAOSNAME_OBFUSCATION;
-        const int ProtRatio = RatioObfuscation;
+        const int ObfRatio = RatioObfuscation;
         
         bool runOnModule(Module &M) override;
 
@@ -109,11 +105,9 @@ Pass *llvm::createSubstitution(bool flag) { return new Substitution(flag); }
 bool Substitution::runOnModule(Module &M) {
 
 	LLVM_DEBUG(outs() << "Substitution debug!\n");
-    //outs() << "kzykzykzy!\n";
-    
     for (auto &F : M) {
 
-        bool needProtect = inConfigOrRandom(KhaosName, M, F, ProtRatio);
+        bool needProtect = inConfigOrRandom(KhaosName, M, F, ObfRatio);
         if (needProtect) {
             LLVM_DEBUG(outs() << "func checked: " << F.getName() << "\n");
             substitute(&F);

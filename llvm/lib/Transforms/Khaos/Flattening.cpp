@@ -25,7 +25,7 @@ namespace {
     struct Flattening : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
         const string KhaosName = KHAOSNAME_OBFUSCATION;
-        const int ProtRatio = RatioObfuscation;
+        const int ObfRatio = RatioObfuscation;
 
         bool flag;
         Flattening() : ModulePass(ID) {}
@@ -51,7 +51,7 @@ bool Flattening::runOnModule(Module &M) {
   // return false;
     for (auto &F : M) {
 
-        bool needProtect = inConfigOrRandom(KhaosName, M, F, ProtRatio);
+        bool needProtect = inConfigOrRandom(KhaosName, M, F, ObfRatio);
         if (needProtect) {
             LLVM_DEBUG(outs() << "func checked: " << F.getName() << "\n");
             if (F.getName().equals("div_significands")) continue;

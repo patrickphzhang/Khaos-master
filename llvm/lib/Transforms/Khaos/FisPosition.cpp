@@ -20,7 +20,7 @@ namespace {
     struct FisPositionPass : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
         const string KhaosName = KHAOSNAME_FIS;
-        const int ProtRatio = RatioFis;
+        const int ObfRatio = RatioFis;
         const int NumPerGroup = 5;
         FisPositionPass() : ModulePass(ID) {}
 
@@ -43,7 +43,7 @@ bool FisPositionPass::runOnModule(Module &M) {
 
     // for (auto &F : M) {
 
-    //     bool needProtect = inConfigOrRandom(KhaosName, M, F, ProtRatio);
+    //     bool needProtect = inConfigOrRandom(KhaosName, M, F, ObfRatio);
     //     if (needProtect) {
     //         LLVM_DEBUG(outs() << "func checked: " << F.getName() << "\n");
     //     } else {

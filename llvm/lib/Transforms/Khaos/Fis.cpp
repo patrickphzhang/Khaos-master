@@ -24,7 +24,7 @@
 
 #include <string>
 
-#define DEBUG_TYPE "intershuffleopt"
+#define DEBUG_TYPE "fis"
 
 static cl::opt<bool> InlineSplittedFunction("inline-splitted-func", cl::init(false), cl::Hidden,
 		cl::desc("Inline Function After Splitted"));
@@ -42,7 +42,7 @@ namespace {
     struct Fis : public ModulePass {
         static char ID;
         const string KhaosName = KHAOSNAME_FIS;
-        const int ProtRatio = RatioFis;
+        const int ObfRatio = RatioFis;
         Json::Value root;  //record transform statistics in this json value
 
         Fis() : ModulePass(ID){
@@ -397,7 +397,7 @@ bool Fis::runOnModule(Module &M) {
             F.getName().find("INS_6VectorIdEEE5solveIN") != StringRef::npos) 
             continue;
         
-        bool needProtect = inConfigOrRandom(KhaosName, M, F, ProtRatio);
+        bool needProtect = inConfigOrRandom(KhaosName, M, F, ObfRatio);
         if (!needProtect) { 
             continue;
         }
@@ -448,12 +448,12 @@ bool Fis::runOnModule(Module &M) {
     return Changed;
 }
 
-INITIALIZE_PASS_BEGIN(Fis, "intershuffleopt",
+INITIALIZE_PASS_BEGIN(Fis, "fis",
                       "Fis Pass", false, false)
 //INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
 INITIALIZE_PASS_DEPENDENCY(BlockFrequencyInfoWrapperPass)
-INITIALIZE_PASS_END(Fis, "intershuffleopt",
+INITIALIZE_PASS_END(Fis, "fis",
                     "Fis Pass", false, false)
 
 ModulePass *llvm::createFisPass() {
