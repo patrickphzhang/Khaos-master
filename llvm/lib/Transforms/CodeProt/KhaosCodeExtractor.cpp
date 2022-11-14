@@ -71,11 +71,11 @@ using namespace llvm;
 using namespace llvm::PatternMatch;
 using ProfileCount = Function::ProfileCount;
 
-#define DEBUG_TYPE "cp-code-extractor"
+#define DEBUG_TYPE "khaos-code-extractor"
 
 static cl::opt<bool>
 AggregateArgsOpt("cp-aggregate-extracted-args", cl::Hidden,
-                 cl::desc("Aggregate arguments to cp-code-extracted functions"));
+                 cl::desc("Aggregate arguments to code-extracted functions"));
 
 static bool isBlockValidForExtraction(const BasicBlock &BB,
                                       const SetVector<BasicBlock *> &Result,

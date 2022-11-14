@@ -243,7 +243,7 @@ bool Fus::runOnModule(Module &M) {
     SetVector<Function *> FuncsMayPropagate;
     SetVector<Function *> FuncsHasBeenFissioned;
     bool DeepFusionMode = false;
-    if (DeepLevel > 1 && !(EnableInterFunctionShufflePass || EnableInterFunctionShuffleOptPass)) {
+    if (DeepLevel > 1 && !EnableInterFunctionShuffleOptPass) {
         DeepFusionMode = true;
     }
     for (auto &F : *MM) {

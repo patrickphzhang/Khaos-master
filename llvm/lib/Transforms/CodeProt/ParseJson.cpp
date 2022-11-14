@@ -28,8 +28,6 @@ cl::opt<int> RatioInterShuffle("ratio-intershuffle", cl::init(0), cl::Hidden,
 		cl::desc("Protect ratio for intershuffle"));
 cl::opt<int> LevelDeepFusion("level-deepfusion", cl::init(0), cl::Hidden,
 		cl::desc("Deep fusion level"));
-//cl::opt<unsigned long long> PayloadKey("payload-key", cl::init(0),
-//        cl::Hidden, cl::desc("Obfuscation key for payload section"));
 cl::opt<bool> EnableCodeObf("enable-codeobf", cl::init(false), cl::Hidden,
 		cl::desc("Enable Code Obfuscation"));
 cl::opt<bool> EnableCodeObfSub("enable-codeobf-sub", cl::init(false), cl::Hidden,
@@ -44,9 +42,6 @@ cl::opt<bool> FissionedFunctionOnly("fissioned-function-only", cl::init(false), 
 		cl::desc("Only Fusion Fissioned Functions"));
 cl::opt<bool> OriginFunctionOnly("origin-function-only", cl::init(false), cl::Hidden,
 		cl::desc("Only Fusion Origin Functions"));
-cl::opt<bool> EnableInterFunctionShufflePass("enable-intershuffle",
-				cl::desc("Enable InterFunctionShuffle Pass"),
-				cl::init(false), cl::Hidden);
 cl::opt<bool> EnableInterFunctionShuffleOptPass("enable-intershuffle-opt",
 				cl::desc("Enable InterFunctionShuffleOpt Pass"),
 				cl::init(false), cl::Hidden);

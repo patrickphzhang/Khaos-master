@@ -71,10 +71,9 @@ namespace llvm {
     extern ModulePass *createFusPass();
     extern Pass *createInterFunctionPreparePass();
     extern Pass *createSplitBasicBlock(bool flag);
-    extern Pass *createInterFunctionShuffleLoopPass();
-    extern Pass *createInterFunctionShuffleLoopMultiPass();
+    // extern Pass *createInterFunctionShuffleLoopPass();
+    // extern Pass *createInterFunctionShuffleLoopMultiPass();
     extern Pass *createInterFunctionDeepFusionPreparePass();
-    extern ModulePass *createInterFunctionShuffleBlockPass();
     extern ModulePass *createInterFunctionShuffleOptPass(); 
     extern ModulePass *createInterFunctionShufflePositionPass();
     extern ModulePass *createParseCOFFPass();

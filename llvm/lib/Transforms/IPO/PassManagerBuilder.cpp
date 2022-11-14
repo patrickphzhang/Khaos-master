@@ -484,13 +484,6 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createGlobalDCEPass());
     }
 
-    if (EnableInterFunctionShufflePass) {
-      MPM.add(createInterFunctionShuffleLoopMultiPass());
-      MPM.add(createInterFunctionShuffleBlockPass());
-      if (!EnableFus)
-        MPM.add(createInterFunctionShufflePositionPass());
-    }
-
     if (EnableInterFunctionShuffleOptPass) {
       MPM.add(createInterFunctionShuffleOptPass());
       if (!EnableFus)
@@ -816,12 +809,6 @@ void PassManagerBuilder::populateModulePassManager(
   }
 
   // Khaos
-  if (EnableInterFunctionShufflePass) {
-    MPM.add(createInterFunctionShuffleLoopMultiPass());
-    MPM.add(createInterFunctionShuffleBlockPass());
-    if (!EnableFus)
-      MPM.add(createInterFunctionShufflePositionPass());
-  }
   if (EnableInterFunctionShuffleOptPass) {
     MPM.add(createInterFunctionShuffleOptPass());
     if (!EnableFus)

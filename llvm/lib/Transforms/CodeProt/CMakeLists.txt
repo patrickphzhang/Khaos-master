@@ -6,8 +6,6 @@ add_llvm_library( LLVMCodeProtMid
   Substitution.cpp 
   Fus.cpp
   InterFunctionPrepare.cpp
-  InterFunctionShuffleBlock.cpp
-  InterFunctionShuffleLoop.cpp
   InterFunctionShufflePosition.cpp
   KhaosCodeExtractor.cpp
   CryptoUtils.cpp
