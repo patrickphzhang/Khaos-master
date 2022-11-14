@@ -704,12 +704,9 @@ collectSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
 
   // Khaos : automactical link compiler-rt
   // Khaos : libclang_rt-x86_64.a
-  for (const Arg *A : Args.filtered(options::OPT_mllvm)){
-    // Fusion
-    // if (!strcmp(A->getValue(0),"-enable-interfusion")) {
-    //   StaticRuntimes.push_back(".fusion");
-    // }
-  }
+  // for (const Arg *A : Args.filtered(options::OPT_mllvm)){
+  //   // Fusion
+  // }
   
 }
 

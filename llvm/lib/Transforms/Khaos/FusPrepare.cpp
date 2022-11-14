@@ -1,4 +1,4 @@
-//===- InterFunctionPrepare.cpp - Extract each loop into a new function ----------===//
+//===- FusPrepare.cpp - Extract each loop into a new function ----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -23,10 +23,10 @@ namespace llvm {
 }
 
 namespace {
-    struct InterFunctionPrepare : public FunctionPass {
+    struct FusPrepare : public FunctionPass {
         static char ID; // Pass identification, replacement for typeid
         const int DeepLevel = LevelDeepFusion;
-        InterFunctionPrepare() : FunctionPass(ID){}
+        FusPrepare() : FunctionPass(ID){}
 
         bool runOnFunction(Function &F) override;
         Value *getExactValue(Value * value);
@@ -34,9 +34,9 @@ namespace {
     
 }
 
-char InterFunctionPrepare::ID = 0;
+char FusPrepare::ID = 0;
 
-Value *InterFunctionPrepare::getExactValue(Value * value) {
+Value *FusPrepare::getExactValue(Value * value) {
     if (BitCastOperator * BO = dyn_cast<BitCastOperator>(value)) {
         return getExactValue(BO->getOperand(0));
     } else if (GlobalAlias *GA = dyn_cast<GlobalAlias>(value)){
@@ -46,7 +46,7 @@ Value *InterFunctionPrepare::getExactValue(Value * value) {
     }
 }
 
-bool InterFunctionPrepare::runOnFunction(Function &F) {
+bool FusPrepare::runOnFunction(Function &F) {
     for (auto &BB : F) {
         for (auto &Inst : BB) {
             if (CallBase *CB = dyn_cast<CallBase>(&Inst)) {  
@@ -67,30 +67,6 @@ bool InterFunctionPrepare::runOnFunction(Function &F) {
     return false;
 }
 
-// bool InterFunctionPrepare::runOnLoop(Loop *L, LPPassManager &LPM) {
+static RegisterPass<FusPrepare> X("FusPrepare", "FusPrepare Pass");
 
-//     Function *Parent = L->getHeader()->getParent();
-
-//     for (auto ib = L->block_begin(), ie = L->block_end(); ib != ie; ib++) {
-//         for (Instruction &I : **ib) {
-//             if (const CallBase *CI = dyn_cast<CallBase>(&I)) {
-//                 Function *Callee = CI->getCalledFunction();
-//                 if (LoopCalleeMap.find(Parent) != LoopCalleeMap.end()) {
-//                     SetVector<Function*> CalleeSet = LoopCalleeMap[Parent];
-//                     CalleeSet.insert(Callee);
-//                 }
-//                 else {
-//                     SetVector<Function*> CalleeSet;
-//                     CalleeSet.insert(Callee);
-//                     LoopCalleeMap.insert(make_pair(Parent, CalleeSet));
-//                 }
-//             }
-//         }
-//     }
-
-//     return false;
-// }
-
-static RegisterPass<InterFunctionPrepare> X("InterFunctionPrepare", "InterFunctionPrepare Pass");
-
-Pass *llvm::createInterFunctionPreparePass() { return new InterFunctionPrepare(); }
+Pass *llvm::createFusPreparePass() { return new FusPrepare(); }

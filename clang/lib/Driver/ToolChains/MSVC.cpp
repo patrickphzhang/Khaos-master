@@ -422,7 +422,7 @@ void visualstudio::Linker::ConstructJob(Compilation &C, const JobAction &JA,
        continue;
     }
 
-    if (!strcmp(A->getValue(0), "-enable-interfusion")) {
+    if (!strcmp(A->getValue(0), "-enable-fus")) {
         CmdArgs.push_back(
             Args.MakeArgString(TC.getCompilerRT(Args, "khaos.fusion")));
     }

@@ -721,7 +721,7 @@ public:
     CheckLazyArguments();
     return Arguments + NumArgs;
   }
-  // InterFusion
+  // Fus
   Argument* getArg(unsigned i) const {
     assert (i < NumArgs && "getArg() out of range!");
     CheckLazyArguments();

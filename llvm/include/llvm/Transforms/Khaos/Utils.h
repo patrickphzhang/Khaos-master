@@ -61,7 +61,6 @@ using namespace std;
 
 namespace llvm {
     extern bool HasJsonParsed;
-    extern Json::Value JsonObj;
     extern DenseMap<Function*, SetVector<Function*>*> LoopCalleeMap;
     extern std::set<Function*> FunctionsWithLoop;
 
@@ -69,13 +68,11 @@ namespace llvm {
     class ModulePass;
     extern ModulePass *createParseJsonPass();
     extern ModulePass *createFusPass();
-    extern Pass *createInterFunctionPreparePass();
+    extern Pass *createFusPreparePass();
     extern Pass *createSplitBasicBlock(bool flag);
-    // extern Pass *createInterFunctionShuffleLoopPass();
-    // extern Pass *createInterFunctionShuffleLoopMultiPass();
-    extern Pass *createInterFunctionDeepFusionPreparePass();
-    extern ModulePass *createInterFunctionShuffleOptPass(); 
-    extern ModulePass *createInterFunctionShufflePositionPass();
+    extern Pass *createDeepFusionPreparePass();
+    extern ModulePass *createFisPass(); 
+    extern ModulePass *createFisPositionPass();
     extern ModulePass *createParseCOFFPass();
     extern Pass *createBogus ();
 	extern Pass *createBogus (bool flag);
@@ -85,8 +82,8 @@ namespace llvm {
 	extern Pass *createSubstitution (bool flag);
 }
 
-bool inConfigOrRandom(const string &ProtName, Module &M, Function &F, int RatioLocal);
-bool inConfigOrRandom(const string &ProtName, Module &M, GlobalVariable &GV, int RatioLocal);
+bool inConfigOrRandom(const string &KhaosName, Module &M, Function &F, int RatioLocal);
+bool inConfigOrRandom(const string &KhaosName, Module &M, GlobalVariable &GV, int RatioLocal);
 string funcNameDemangle(string funcName);
 
 void fixStack(Function *f);
@@ -95,28 +92,24 @@ bool toObfuscate(bool flag, Function *f, std::string attribute);
 
 
 extern cl::opt<int> RatioGlobal;
-extern cl::opt<int> RatioFus;
 extern cl::opt<int> LevelDeepFusion;
 extern cl::opt<int> RatioObfuscation;
-extern cl::opt<int> RatioInterShuffle;
-//extern cl::opt<unsigned long long> PayloadKey;
+extern cl::opt<int> RatioFis;
 
 // KHAOS
 extern cl::opt<bool> EnableFus;
-extern cl::opt<bool> EnableInterFunctionShuffleOptPass;
+extern cl::opt<bool> EnableFis;
 extern cl::opt<bool> FissionedFunctionOnly;
 extern cl::opt<bool> OriginFunctionOnly;
 extern cl::opt<bool> EnableTransformStat;
 
 // O-LLVM
-extern cl::opt<bool> EnableCodeObf;
-extern cl::opt<bool> EnableCodeObfSub;
-extern cl::opt<bool> EnableCodeObfFla;
-extern cl::opt<bool> EnableCodeObfBog;
+extern cl::opt<bool> EnableSub;
+extern cl::opt<bool> EnableFla;
+extern cl::opt<bool> EnableBog;
 
 
-#define PROTNAME_INTERFUSION    "Fus"
-#define PROTNAME_OBFUSCATION    "Obfuscation"
-#define PROTNAME_INTERSHUFFLE   "InterFunctionShuffle"
-#define PROTNAME_INTERSHUFFLEOPT "InterFunctionShuffleOpt"  //added for intershuffle opt
+#define KHAOSNAME_FUS    "Fus"
+#define KHAOSNAME_OBFUSCATION    "Obfuscation"
+#define KHAOSNAME_FIS   "Fis"
 #endif

@@ -5,14 +5,14 @@ add_llvm_library( LLVMKhaosMid
   Flattening.cpp
   Substitution.cpp 
   Fus.cpp
-  InterFunctionPrepare.cpp
-  InterFunctionShufflePosition.cpp
+  FusPrepare.cpp
+  FisPosition.cpp
   KhaosCodeExtractor.cpp
   CryptoUtils.cpp
   SplitBasicBlocks.cpp
   HarmnessAnalysis.cpp
-  InterFunctionDeepFusionPrepare.cpp
-  InterFunctionShuffleOpt.cpp
+  DeepFusionPrepare.cpp
+  Fis.cpp
 )
 
 add_dependencies(LLVMKhaosMid intrinsics_gen)

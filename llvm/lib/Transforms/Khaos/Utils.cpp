@@ -1,40 +1,14 @@
 #include "llvm/Transforms/Khaos/Utils.h"
 
-bool inConfigOrRandom(const string &ProtName, Module &M, Function &F, int RatioLocal) {
-    if (F.isIntrinsic() || F.isDeclaration()) return false;
-	if (JsonObj.isMember(ProtName)) {
-		string moduleName = M.getName().str();
-		string funcName = F.getName().str();
-		//string funcNameDemangled = funcNameDemangle(funcName);
-		string funcNameDemangled = demangle(funcName);
-		
-		string lineno;
-		BasicBlock &firstBB = F.front();
-		for (auto ib = firstBB.begin(), ie = firstBB.end(); ib != ie; ib++) {
-			DebugLoc DL = (*ib).getDebugLoc();
-			if (DL.get()) {
-				lineno = to_string(DL.getFnDebugLoc().getLine());
-				break;
-			}
-		}
-
-		for (unsigned int i = 0; i < JsonObj[ProtName].size(); i++) {
-			if (JsonObj[ProtName][i]["file"].asString() == moduleName &&
-				// JsonObj[ProtName][i]["line"].asString() == lineno &&
-				strstr(funcNameDemangled.c_str(), JsonObj[ProtName][i]["func"].asCString())) {
-				return true;
-			}
-		}
-
-	}
-
+bool inConfigOrRandom(const string &KhaosName, Module &M, Function &F, int RatioLocal) {
+  if (F.isIntrinsic() || F.isDeclaration()) return false;
 	if (RatioGlobal) return ((rand() % 100) < RatioGlobal);
 	if (RatioLocal) return ((rand() % 100) < RatioLocal);
 
 	return false;
 }
 
-bool inConfigOrRandom(const string& ProtName, Module& M, GlobalVariable& GV, int RatioLocal) {
+bool inConfigOrRandom(const string& KhaosName, Module& M, GlobalVariable& GV, int RatioLocal) {
 	
 	// Check if it is a const global variable
 	if (GV.isDeclaration() || !GV.isConstant() || !GV.hasInitializer()) {
@@ -49,19 +23,6 @@ bool inConfigOrRandom(const string& ProtName, Module& M, GlobalVariable& GV, int
         GV.getName() == "llvm.global_dtors") {
 		return false;
 	}
-
-	if (JsonObj.isMember(ProtName)) {
-      string moduleName = M.getName().str();
-      string GVName = GV.getName().str();
-      //string GVNameDemangled = funcNameDemangle(GVName);
-	  string GVNameDemangled = demangle(GVName);
-      for (unsigned int i = 0; i < JsonObj[ProtName].size(); i++) {
-        if (JsonObj[ProtName][i]["file"].asString() == moduleName &&
-            JsonObj[ProtName][i]["var"].asString() == GVNameDemangled) {
-          return true;
-        }
-      }
-    }
 
 	if (RatioGlobal) return ((rand() % 100) < RatioGlobal);
     if (RatioLocal)  return ((rand() % 100) < RatioLocal);

@@ -1,4 +1,4 @@
-//===- InterFunctionShufflePosition.cpp ------------------------------------- ---------------===//
+//===- FisPosition.cpp ------------------------------------- ---------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -17,12 +17,12 @@
 #define DEBUG_TYPE "position"
 
 namespace {
-    struct InterFunctionShufflePositionPass : public ModulePass {
+    struct FisPositionPass : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
-        const string ProtName = PROTNAME_INTERSHUFFLE;
-        const int ProtRatio = RatioInterShuffle;
+        const string KhaosName = KHAOSNAME_FIS;
+        const int ProtRatio = RatioFis;
         const int NumPerGroup = 5;
-        InterFunctionShufflePositionPass() : ModulePass(ID) {}
+        FisPositionPass() : ModulePass(ID) {}
 
         bool runOnModule(Module &M) override;
 
@@ -35,15 +35,15 @@ namespace {
 
 }
 
-char InterFunctionShufflePositionPass::ID = 0;
+char FisPositionPass::ID = 0;
 
-bool InterFunctionShufflePositionPass::runOnModule(Module &M) {
+bool FisPositionPass::runOnModule(Module &M) {
 
-	LLVM_DEBUG(outs() << "InterFunctionShufflePosition debug!\n");
+	LLVM_DEBUG(outs() << "FisPosition debug!\n");
 
     // for (auto &F : M) {
 
-    //     bool needProtect = inConfigOrRandom(ProtName, M, F, ProtRatio);
+    //     bool needProtect = inConfigOrRandom(KhaosName, M, F, ProtRatio);
     //     if (needProtect) {
     //         LLVM_DEBUG(outs() << "func checked: " << F.getName() << "\n");
     //     } else {
@@ -58,7 +58,7 @@ bool InterFunctionShufflePositionPass::runOnModule(Module &M) {
 
 }
 
-void InterFunctionShufflePositionPass::shuffle(Module &M, int NumPerGroup) {
+void FisPositionPass::shuffle(Module &M, int NumPerGroup) {
     vector<Function*> vFunc;
     for (auto ib = M.begin(), ie = M.end(); ib != ie; ib++) {
         Function *tempF = &(*ib);
@@ -78,19 +78,19 @@ void InterFunctionShufflePositionPass::shuffle(Module &M, int NumPerGroup) {
     }
 }
 
-void InterFunctionShufflePositionPass::moveBefore(Function *F_src, Function *F_dest) {
+void FisPositionPass::moveBefore(Function *F_src, Function *F_dest) {
     F_dest->getParent()->getFunctionList().splice(
         F_dest->getIterator(), F_src->getParent()->getFunctionList(), F_src->getIterator()
     );
 }
 
-void InterFunctionShufflePositionPass::moveAfter(Function *F_src, Function *F_dest) {
+void FisPositionPass::moveAfter(Function *F_src, Function *F_dest) {
     F_dest->getParent()->getFunctionList().splice(
         ++F_dest->getIterator(), F_src->getParent()->getFunctionList(), F_src->getIterator()
     );
 }
 
-void InterFunctionShufflePositionPass::swap(unsigned int src, unsigned int dest, vector<Function*> &v) {
+void FisPositionPass::swap(unsigned int src, unsigned int dest, vector<Function*> &v) {
     if (src == dest) return;
     Function* F_src = v[src];
     Function* F_dest = v[dest];
@@ -102,9 +102,9 @@ void InterFunctionShufflePositionPass::swap(unsigned int src, unsigned int dest,
     moveAfter(F_src, F_dest_sub_1);
 }
 
-static RegisterPass<InterFunctionShufflePositionPass> X("intershuffleposition", "InterFunctionShufflePosition Pass");
+static RegisterPass<FisPositionPass> X("fis", "FisPosition Pass");
 
-ModulePass *llvm::createInterFunctionShufflePositionPass() {
-    return new InterFunctionShufflePositionPass();
+ModulePass *llvm::createFisPositionPass() {
+    return new FisPositionPass();
 }
 

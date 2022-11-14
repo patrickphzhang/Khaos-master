@@ -22,7 +22,7 @@ namespace {
 struct BogusControlFlow : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
   bool flag;
-  const string ProtName = PROTNAME_OBFUSCATION;
+  const string KhaosName = KHAOSNAME_OBFUSCATION;
   const int ProtRatio = RatioObfuscation;
   BogusControlFlow() : ModulePass(ID) {}
   BogusControlFlow(bool flag) : ModulePass(ID) {
@@ -48,7 +48,7 @@ bool BogusControlFlow::runOnModule(Module &M) {
   LLVM_DEBUG(outs() << "BogusControlFlow debug!\n");
   bool flag = 0;
   for (auto &F : M) {
-    bool needProtect = inConfigOrRandom(ProtName, M, F, ProtRatio);
+    bool needProtect = inConfigOrRandom(KhaosName, M, F, ProtRatio);
     if (needProtect) {
       LLVM_DEBUG(outs() << "func checked: " << F.getName() << "\n");
 

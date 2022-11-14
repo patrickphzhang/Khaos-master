@@ -447,13 +447,13 @@ void PassManagerBuilder::populateModulePassManager(
 
   // O-LLVM
   MPM.add(createParseJsonPass());
-  if (EnableCodeObf || EnableCodeObfBog) {
+  if (EnableBog) {
     MPM.add(createBogus(true));
   }
-  if (EnableCodeObf || EnableCodeObfFla) {
+  if (EnableFla) {
     MPM.add(createFlattening(true));
   }
-  if (EnableCodeObf || EnableCodeObfSub) {
+  if (EnableSub) {
     MPM.add(createSubstitution(true));
   }
 
@@ -484,10 +484,10 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createGlobalDCEPass());
     }
 
-    if (EnableInterFunctionShuffleOptPass) {
-      MPM.add(createInterFunctionShuffleOptPass());
+    if (EnableFis) {
+      MPM.add(createFisPass());
       if (!EnableFus)
-        MPM.add(createInterFunctionShufflePositionPass());
+        MPM.add(createFisPositionPass());
     }
 
 
@@ -809,10 +809,10 @@ void PassManagerBuilder::populateModulePassManager(
   }
 
   // Khaos
-  if (EnableInterFunctionShuffleOptPass) {
-    MPM.add(createInterFunctionShuffleOptPass());
+  if (EnableFis) {
+    MPM.add(createFisPass());
     if (!EnableFus)
-      MPM.add(createInterFunctionShufflePositionPass());
+      MPM.add(createFisPositionPass());
   }
 
 }
@@ -830,12 +830,12 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
 
   // Khaos
   if (EnableFus) {
-      PM.add(createInterFunctionPreparePass());
+      PM.add(createFusPreparePass());
       if (LevelDeepFusion > 1) {
-        PM.add(createInterFunctionDeepFusionPreparePass());
+        PM.add(createDeepFusionPreparePass());
       }
       PM.add(createFusPass());
-      PM.add(createInterFunctionShufflePositionPass());
+      PM.add(createFisPositionPass());
   }
 
   // Provide AliasAnalysis services for optimizations.

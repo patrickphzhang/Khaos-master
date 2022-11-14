@@ -15,7 +15,7 @@
 #include "llvm/Transforms/Khaos/Utils.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Khaos/HarmnessAnalysis.h"
-#include "llvm/Transforms/Khaos/InterFunctionDeepFusionPrepare.h"
+#include "llvm/Transforms/Khaos/DeepFusionPrepare.h"
 #include "llvm/IR/Verifier.h"
 
 #define DEBUG_TYPE "Fus"
@@ -23,8 +23,7 @@
 namespace {
     struct Fus : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
-        const string ProtName = PROTNAME_INTERFUSION;
-        const int ProtRatio = RatioFus;
+        const string KhaosName = KHAOSNAME_FUS;
         const int DeepLevel = LevelDeepFusion;
         LLVMContext *C;
         Module *MM;
@@ -49,8 +48,6 @@ namespace {
                 AU.addRequired<HarmnessAnalysis>();
                 AU.addRequired<LoopInfoWrapperPass>();
                 AU.addRequired<DominatorTreeWrapperPass>();
-                // AU.addPreserved<DominatorTreeWrapperPass>();
-                // AU.addRequired<InterFunctionDeepFusionPrepare>();
                 AU.setPreservesAll();
             // }
         }
@@ -243,7 +240,7 @@ bool Fus::runOnModule(Module &M) {
     SetVector<Function *> FuncsMayPropagate;
     SetVector<Function *> FuncsHasBeenFissioned;
     bool DeepFusionMode = false;
-    if (DeepLevel > 1 && !EnableInterFunctionShuffleOptPass) {
+    if (DeepLevel > 1 && !EnableFis) {
         DeepFusionMode = true;
     }
     for (auto &F : *MM) {

@@ -43,7 +43,7 @@ STATISTIC(Xor, "Xor substitued");
 namespace {
     struct Substitution : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
-        const string ProtName = PROTNAME_OBFUSCATION;
+        const string KhaosName = KHAOSNAME_OBFUSCATION;
         const int ProtRatio = RatioObfuscation;
         
         bool runOnModule(Module &M) override;
@@ -113,7 +113,7 @@ bool Substitution::runOnModule(Module &M) {
     
     for (auto &F : M) {
 
-        bool needProtect = inConfigOrRandom(ProtName, M, F, ProtRatio);
+        bool needProtect = inConfigOrRandom(KhaosName, M, F, ProtRatio);
         if (needProtect) {
             LLVM_DEBUG(outs() << "func checked: " << F.getName() << "\n");
             substitute(&F);

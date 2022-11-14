@@ -19,12 +19,10 @@ namespace llvm {
 class PassRegistry;
 
 // Khaos
-// void initializeInterFunctionShuffleLoopPass(PassRegistry&);
-void initializeInterFunctionDeepFusionPreparePass(PassRegistry&);
-// void initializeInterFunctionShuffleLoopMultiPass(PassRegistry&);
+void initializeDeepFusionPreparePass(PassRegistry&);
 void initializeFusPass(PassRegistry&);
-void initializeInterFunctionShufflePositionPass(PassRegistry&);
-void initializeInterFunctionShuffleOptPass(PassRegistry&);
+void initializeFisPositionPass(PassRegistry&);
+void initializeFisPass(PassRegistry&);
 
 /// Initialize all passes linked into the TransformUtils library.
 void initializeCore(PassRegistry&);

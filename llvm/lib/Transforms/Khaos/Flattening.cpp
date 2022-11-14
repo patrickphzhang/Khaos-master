@@ -24,7 +24,7 @@ STATISTIC(Flattened, "Functions flattened");
 namespace {
     struct Flattening : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
-        const string ProtName = PROTNAME_OBFUSCATION;
+        const string KhaosName = KHAOSNAME_OBFUSCATION;
         const int ProtRatio = RatioObfuscation;
 
         bool flag;
@@ -51,7 +51,7 @@ bool Flattening::runOnModule(Module &M) {
   // return false;
     for (auto &F : M) {
 
-        bool needProtect = inConfigOrRandom(ProtName, M, F, ProtRatio);
+        bool needProtect = inConfigOrRandom(KhaosName, M, F, ProtRatio);
         if (needProtect) {
             LLVM_DEBUG(outs() << "func checked: " << F.getName() << "\n");
             if (F.getName().equals("div_significands")) continue;

@@ -1,4 +1,4 @@
-//===- InterFunctionShuffleOpt.cpp ------------------------------------- ---------------===//
+//===- Fis.cpp ------------------------------------- ---------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -29,24 +29,24 @@
 static cl::opt<bool> InlineSplittedFunction("inline-splitted-func", cl::init(false), cl::Hidden,
 		cl::desc("Inline Function After Splitted"));
 
-STATISTIC(NumBlocksExtracted, "Number of basic blocks extracted by InterFunctionShuffleOpt");
+STATISTIC(NumBlocksExtracted, "Number of basic blocks extracted by Fis");
 STATISTIC(NumTotalBlocks, "Number of module's block");
-STATISTIC(NumExtractRegionFailed, "Number of extracting region failed by InterFunctionShuffleOpt");
-STATISTIC(NumExtractRegionSucceeded, "Number of extracting region succeeded by InterFunctionShuffleOpt");
+STATISTIC(NumExtractRegionFailed, "Number of extracting region failed by Fis");
+STATISTIC(NumExtractRegionSucceeded, "Number of extracting region succeeded by Fis");
 STATISTIC(NumSkippedFunction, "Number of function skipped");
 STATISTIC(NumSplittedFunction, "Number of function splitted");
 STATISTIC(NumInlinedFunction, "Number of function inlined");
 STATISTIC(NumCallSiteEliminated, "Number of callsite eliminated");
 
 namespace {
-    struct InterFunctionShuffleOpt : public ModulePass {
+    struct Fis : public ModulePass {
         static char ID;
-        const string ProtName = PROTNAME_INTERSHUFFLEOPT;
-        const int ProtRatio = RatioInterShuffle;
+        const string KhaosName = KHAOSNAME_FIS;
+        const int ProtRatio = RatioFis;
         Json::Value root;  //record transform statistics in this json value
 
-        InterFunctionShuffleOpt() : ModulePass(ID){
-            initializeInterFunctionShuffleOptPass(*PassRegistry::getPassRegistry());
+        Fis() : ModulePass(ID){
+            initializeFisPass(*PassRegistry::getPassRegistry());
         }
 
         bool isBBInLoop(BasicBlock* BB, LoopInfo &LI);
@@ -70,11 +70,11 @@ namespace {
     };
 } // end anonymous namespace
 
-char InterFunctionShuffleOpt::ID = 0;
+char Fis::ID = 0;
 
 //return true if BB is inside a Loop;
 //otherwise, return false;
-bool InterFunctionShuffleOpt::isBBInLoop(BasicBlock* BB, LoopInfo &LI)
+bool Fis::isBBInLoop(BasicBlock* BB, LoopInfo &LI)
 {
     if (!BB) return false;
     llvm::Loop* loop = LI.getLoopFor(BB);
@@ -83,7 +83,7 @@ bool InterFunctionShuffleOpt::isBBInLoop(BasicBlock* BB, LoopInfo &LI)
 }
 
 //if splitting function F succeeded, return true; otherwise, return false;
-bool InterFunctionShuffleOpt::splittingFunction(Function &F)
+bool Fis::splittingFunction(Function &F)
 {
     bool changed = false;
     BlockFrequencyInfo& BFI= getAnalysis<BlockFrequencyInfoWrapperPass>(F).getBFI();
@@ -101,7 +101,7 @@ bool InterFunctionShuffleOpt::splittingFunction(Function &F)
 
 //BB is considered as hotBB if its blockfrequency is greater than hotThreshold.
 SmallSetVector<BasicBlock*, 8> 
-InterFunctionShuffleOpt::getHotBBSet(Function &F, BlockFrequency &hotThreshold, LoopInfo &LI)
+Fis::getHotBBSet(Function &F, BlockFrequency &hotThreshold, LoopInfo &LI)
 {
     SmallSetVector<BasicBlock*, 8> hotBBSet;
     BlockFrequencyInfo& BFI= getAnalysis<BlockFrequencyInfoWrapperPass>(F).getBFI();
@@ -118,7 +118,7 @@ InterFunctionShuffleOpt::getHotBBSet(Function &F, BlockFrequency &hotThreshold, 
 }
 
 SmallVector<SmallVector<BasicBlock*, 8>, 8>
-InterFunctionShuffleOpt::buildRegionsToExtract_v1(Function &F, BlockFrequencyInfo &BFI, DominatorTree &DT)
+Fis::buildRegionsToExtract_v1(Function &F, BlockFrequencyInfo &BFI, DominatorTree &DT)
 {
     SmallVector<SmallVector<BasicBlock*, 8>, 8> result;  //regions to extract
     SmallSetVector<BasicBlock *, 4> sinkBBCandidateSet;  //region's entryBB
@@ -194,7 +194,7 @@ InterFunctionShuffleOpt::buildRegionsToExtract_v1(Function &F, BlockFrequencyInf
  *  2. hotBB  : hotBB的后继加入regionBeginBB集合
  */
 SmallVector<SmallVector<BasicBlock*, 8>, 8>
-InterFunctionShuffleOpt::buildRegionsToExtract_v2(Function &F, BlockFrequencyInfo &BFI, DominatorTree &DT)
+Fis::buildRegionsToExtract_v2(Function &F, BlockFrequencyInfo &BFI, DominatorTree &DT)
 {
     SmallVector<SmallVector<BasicBlock*, 8>, 8> result;    //regions to extract
     SmallSetVector<BasicBlock *, 4> regionPredBBSet;       //region's PredBB
@@ -245,7 +245,7 @@ InterFunctionShuffleOpt::buildRegionsToExtract_v2(Function &F, BlockFrequencyInf
 }
 
 //print frequency of BBs in function F
-void InterFunctionShuffleOpt::printBBFreqency(Function &F)
+void Fis::printBBFreqency(Function &F)
 {
     BlockFrequencyInfo& BFI= getAnalysis<BlockFrequencyInfoWrapperPass>(F).getBFI();
     outs() << "-------------Block Frequency list( " << F.getName() << "  "
@@ -264,7 +264,7 @@ void InterFunctionShuffleOpt::printBBFreqency(Function &F)
 //try to extract a region in a function into a new function.
 //if succeeded, return true;
 //else, return false;
-bool InterFunctionShuffleOpt::extractRegion(SmallVector<BasicBlock*, 8> BBsToExtract,
+bool Fis::extractRegion(SmallVector<BasicBlock*, 8> BBsToExtract,
                                             DominatorTree *DT, bool AggregateArgs, BlockFrequencyInfo *BFI,
                                             BranchProbabilityInfo *BPI, AssumptionCache *AC,
                                             bool AllowVarArgs, bool AllowAlloca)
@@ -342,13 +342,13 @@ bool InterFunctionShuffleOpt::extractRegion(SmallVector<BasicBlock*, 8> BBsToExt
             {
                 //with -g option, record BB name and line number.
                 for (uint lineNo : BBName2LineNoMap[bbName])
-                    //root[ProtName][oldFunctionName.str()][newFuncName.str()].append(bbName.str());
-                    root[ProtName][oldFunctionName.str()][newFuncName.str()][bbName.str()].append(lineNo);
+                    //root[KhaosName][oldFunctionName.str()][newFuncName.str()].append(bbName.str());
+                    root[KhaosName][oldFunctionName.str()][newFuncName.str()][bbName.str()].append(lineNo);
             }
             else
             {
                 //without -g option, record BB name.
-                root[ProtName][oldFunctionName.str()][newFuncName.str()].append(bbName.str());
+                root[KhaosName][oldFunctionName.str()][newFuncName.str()].append(bbName.str());
             }
         }
             
@@ -358,7 +358,7 @@ bool InterFunctionShuffleOpt::extractRegion(SmallVector<BasicBlock*, 8> BBsToExt
 
 //try inlining smaller function after all functions in M had been split;
 //don't inline fission function.
-bool InterFunctionShuffleOpt::tryInlineFunction(Function &F)
+bool Fis::tryInlineFunction(Function &F)
 {
     bool Changed = false;
     SmallSetVector<CallSite, 16> Calls;
@@ -383,7 +383,7 @@ bool InterFunctionShuffleOpt::tryInlineFunction(Function &F)
     return Changed;
 }
 
-bool InterFunctionShuffleOpt::runOnModule(Module &M) {
+bool Fis::runOnModule(Module &M) {
     bool Changed = false;
     
     SmallSetVector<Function *, 8> splittedFuncs;
@@ -397,16 +397,13 @@ bool InterFunctionShuffleOpt::runOnModule(Module &M) {
             F.getName().find("INS_6VectorIdEEE5solveIN") != StringRef::npos) 
             continue;
         
-        bool needProtect = inConfigOrRandom(ProtName, M, F, ProtRatio);
+        bool needProtect = inConfigOrRandom(KhaosName, M, F, ProtRatio);
         if (!needProtect) { 
-			//LLVM_DEBUG(outs() << "InterShuffle skipped function: " << F.getName() << "\n");
             continue;
         }
         LLVM_DEBUG(printBBFreqency(F));
-        LLVM_DEBUG(outs() << "InterShuffle try to split function: " << F.getName() << "\n");
+        LLVM_DEBUG(outs() << "Fis try to split function: " << F.getName() << "\n");
         errs() << "STATISTICS Funtion origin info: " << F.getName() << ", " << F.size() << "\n";
-        
-        // outs() << "InterShuffle try to split function: " << F.getName() << "\n";
         // F.dump();
         bool splitFlag = splittingFunction(F);
         if (splitFlag)
@@ -451,15 +448,14 @@ bool InterFunctionShuffleOpt::runOnModule(Module &M) {
     return Changed;
 }
 
-INITIALIZE_PASS_BEGIN(InterFunctionShuffleOpt, "intershuffleopt",
-                      "InterFunctionShuffleOpt Pass", false, false)
+INITIALIZE_PASS_BEGIN(Fis, "intershuffleopt",
+                      "Fis Pass", false, false)
 //INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
 INITIALIZE_PASS_DEPENDENCY(BlockFrequencyInfoWrapperPass)
-INITIALIZE_PASS_END(InterFunctionShuffleOpt, "intershuffleopt",
-                    "InterFunctionShuffleOpt Pass", false, false)
-// static RegisterPass<InterFunctionShuffleOpt> X("intershuffleopt", "InterFunctionShuffleOpt Pass");
+INITIALIZE_PASS_END(Fis, "intershuffleopt",
+                    "Fis Pass", false, false)
 
-ModulePass *llvm::createInterFunctionShuffleOptPass() {
-    return new InterFunctionShuffleOpt();
+ModulePass *llvm::createFisPass() {
+    return new Fis();
 }
