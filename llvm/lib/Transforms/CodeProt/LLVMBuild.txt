@@ -1,6 +1,0 @@
-[component_0]
-type = Library
-name = CodeProtMid
-parent = Transforms
-required_libraries = Support
-

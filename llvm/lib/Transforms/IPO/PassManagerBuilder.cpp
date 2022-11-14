@@ -47,7 +47,7 @@
 #include "llvm/Transforms/Vectorize/LoopVectorize.h"
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 // Khaos
-#include "llvm/Transforms/CodeProt/Utils.h"
+#include "llvm/Transforms/Khaos/Utils.h"
 
 using namespace llvm;
 

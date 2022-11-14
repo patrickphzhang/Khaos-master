@@ -424,7 +424,7 @@ void visualstudio::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
     if (!strcmp(A->getValue(0), "-enable-interfusion")) {
         CmdArgs.push_back(
-            Args.MakeArgString(TC.getCompilerRT(Args, "codeprot.fusion")));
+            Args.MakeArgString(TC.getCompilerRT(Args, "khaos.fusion")));
     }
     CmdArgs.push_back(
         Args.MakeArgString("-mllvm:" + StringRef(A->getValue(0))));

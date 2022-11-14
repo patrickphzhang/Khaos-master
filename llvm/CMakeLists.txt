@@ -1098,5 +1098,3 @@ if (LLVM_INCLUDE_BENCHMARKS)
   add_subdirectory(utils/benchmark)
   add_subdirectory(benchmarks)
 endif()
-
-file(COPY codeprot-resources DESTINATION ${LLVM_TOOLS_INSTALL_DIR})

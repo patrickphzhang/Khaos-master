@@ -3229,7 +3229,7 @@ Error BitcodeReader::parseFunctionRecord(ArrayRef<uint64_t> Record) {
   Func->setAttributes(getAttributes(Record[4]));
 
   // Khaos
-  Func->setCreatedByCodeProt(Record[19]);
+  Func->setCreatedByKhaos(Record[19]);
   // errs() << "reading OriginNameLength\n";
   // errs() << "Record.size(): " << Record.size() << "\n";
   Func->setOriginNameLength(Record[20]);

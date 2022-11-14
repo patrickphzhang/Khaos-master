@@ -50,7 +50,7 @@
 #include <string>
 
 // Khaos
-#include "llvm/Transforms/CodeProt/Utils.h"
+#include "llvm/Transforms/Khaos/Utils.h"
 
 using namespace llvm;
 

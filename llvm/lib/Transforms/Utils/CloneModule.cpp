@@ -77,9 +77,9 @@ std::unique_ptr<Module> llvm::CloneModule(
         Function::Create(cast<FunctionType>(I.getValueType()), I.getLinkage(),
                          I.getAddressSpace(), I.getName(), New.get());
     NF->copyAttributesFrom(&I);
-    // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
+    // Khaos : Recover from bc with CreatedByKhaos passed correctly, modified by zk.
     NF->setOriginNameLength(I.getOriginNameLength());
-    NF->setCreatedByCodeProt(I.isCreatedByCodeProt());
+    NF->setCreatedByKhaos(I.isCreatedByKhaos());
     
     VMap[&I] = NF;
   }

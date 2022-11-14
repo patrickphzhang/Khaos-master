@@ -59,8 +59,3 @@ endif()
 if(COMPILER_RT_BUILD_LIBFUZZER)
   compiler_rt_build_runtime(fuzzer)
 endif()
-
-#CodeProt
-if (COMPILER_RT_BUILD_CODEPROT)
-  add_subdirectory(codeprot_helper)
-endif()

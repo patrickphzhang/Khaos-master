@@ -4170,8 +4170,8 @@ void InnerLoopVectorizer::widenInstruction(Instruction &I) {
           VectorF =
               Function::Create(FTy, Function::ExternalLinkage, VFnName, M);
           VectorF->copyAttributesFrom(F);
-          // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
-          VectorF->setCreatedByCodeProt(F->isCreatedByCodeProt());
+          // Khaos : Recover from bc with CreatedByKhaos passed correctly, modified by zk.
+          VectorF->setCreatedByKhaos(F->isCreatedByKhaos());
           VectorF->setOriginNameLength(F->getOriginNameLength());
         }
       }

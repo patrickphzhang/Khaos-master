@@ -12,7 +12,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/CodeProt/Utils.h"
+#include "llvm/Transforms/Khaos/Utils.h"
 #include <assert.h>
 
 using namespace llvm;
@@ -38,7 +38,7 @@ bool DeepFusionLevel1Pass::runOnMachineFunction(MachineFunction &MF) {
   Module &M = const_cast<Module &>(*(MF.getFunction().getParent()));
   Function &F = const_cast<Function &>(MF.getFunction());
   // errs() << F.getName() << "\n";
-  if (!F.isCreatedByCodeProt() || MF.size() <= 1)
+  if (!F.isCreatedByKhaos() || MF.size() <= 1)
     return false;
   // errs() << F.getName() << "\n";
   StringRef Fusion("Fusion");

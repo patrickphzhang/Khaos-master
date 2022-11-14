@@ -126,5 +126,3 @@ endif()
 if(WITH_POLLY AND LINK_POLLY_INTO_TOOLS)
   target_link_libraries(clang PRIVATE Polly)
 endif(WITH_POLLY AND LINK_POLLY_INTO_TOOLS)
-
-add_custom_command(TARGET clang POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${LLVM_MAIN_SRC_DIR}/codeprot-resources ${LLVM_BINARY_DIR}/${CMAKE_CFG_INTDIR}/codeprot-resources)

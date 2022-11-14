@@ -364,8 +364,8 @@ bool AMDGPURewriteOutArguments::runOnFunction(Function &F) {
                                        F.getName() + ".body");
   F.getParent()->getFunctionList().insert(F.getIterator(), NewFunc);
   NewFunc->copyAttributesFrom(&F);
-  // Khaos : Recover from bc with CreatedByCodeProt passed correctly, modified by zk.
-  NewFunc->setCreatedByCodeProt(F.isCreatedByCodeProt());
+  // Khaos : Recover from bc with CreatedByKhaos passed correctly, modified by zk.
+  NewFunc->setCreatedByKhaos(F.isCreatedByKhaos());
   NewFunc->setOrginNameLength(F.getOriginNameLength());
   NewFunc->setComdat(F.getComdat());
 

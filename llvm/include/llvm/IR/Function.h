@@ -69,7 +69,7 @@ public:
 
 private:
   // Khaos
-  bool CreatedByCodeProt = false;
+  bool CreatedByKhaos = false;
   uint OriginNameLength = 0;
   // Important things that make up a function!
   BasicBlockListType BasicBlocks;         ///< The basic blocks
@@ -109,9 +109,9 @@ public:
   }
 
   // Khaos
-  bool isCreatedByCodeProt() const { return CreatedByCodeProt; }
+  bool isCreatedByKhaos() const { return CreatedByKhaos; }
 
-  void setCreatedByCodeProt(bool CP) { CreatedByCodeProt = CP; }
+  void setCreatedByKhaos(bool CP) { CreatedByKhaos = CP; }
 
   uint getOriginNameLength() const { return OriginNameLength; }
   

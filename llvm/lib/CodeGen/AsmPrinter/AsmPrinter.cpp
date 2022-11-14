@@ -128,7 +128,7 @@
 
 // Khaos
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/Transforms/CodeProt/Utils.h"
+#include "llvm/Transforms/Khaos/Utils.h"
 
 using namespace llvm;
 

@@ -62,7 +62,7 @@ enum BlockIDs {
   SYNC_SCOPE_NAMES_BLOCK_ID,
 
   // Khaos
-  METADATA_CODEPROT_BLOCK_ID,
+  METADATA_KHAOS_BLOCK_ID,
 };
 
 /// Identification block contains a string that describes the producer details,
@@ -339,9 +339,9 @@ enum MetadataCodes {
 
 };
 
-enum CPMetadata {
+enum KhaosMetadata {
   // Khaos
-  METADATA_CODEPROT_BLOCK = 1,   // [val]
+  METADATA_KHAOS_BLOCK = 1,   // [val]
 };
 
 // The constants block (CONSTANTS_BLOCK_ID) describes emission for each
