@@ -1161,6 +1161,7 @@ void Fus::getHarmlessBasicBlocks(Function *F, std::vector<BasicBlock *> &Harmles
                 HarmlessBB.push_back(&BB);
             }
         }
+    }
 }
 
 // key: values need phi
