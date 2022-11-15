@@ -21,7 +21,6 @@
 #include <type_traits>
 
 namespace llvm {
-  extern bool BeginDebug;
 
 //===----------------------------------------------------------------------===//
 //                          isa<x> Support Templates

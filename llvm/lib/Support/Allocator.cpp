@@ -14,7 +14,6 @@
 #include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
-bool BeginDebug = false;
 namespace detail {
 
 void printBumpPtrAllocatorStats(unsigned NumSlabs, size_t BytesAllocated,

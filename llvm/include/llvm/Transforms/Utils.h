@@ -15,7 +15,6 @@
 #define LLVM_TRANSFORMS_UTILS_H
 
 namespace llvm {
-extern bool BeginDebug;
 class ModulePass;
 class FunctionPass;
 class Pass;

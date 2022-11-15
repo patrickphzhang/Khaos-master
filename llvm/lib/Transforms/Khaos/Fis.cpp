@@ -76,10 +76,8 @@ char Fis::ID = 0;
 //otherwise, return false;
 bool Fis::isBBInLoop(BasicBlock* BB, LoopInfo &LI)
 {
-    if (!BB) return false;
-    llvm::Loop* loop = LI.getLoopFor(BB);
-    if (!loop/* || LI.isLoopHeader(BB)*/) return false;
-    return true;
+    if (BB && LI.getLoopFor(BB)) return true;
+    return false;
 }
 
 //if splitting function F succeeded, return true; otherwise, return false;
@@ -126,7 +124,6 @@ Fis::buildRegionsToExtract_v1(Function &F, BlockFrequencyInfo &BFI, DominatorTre
     LoopInfo LI{DT};
     BlockFrequency hotBBFreqThresold = (uint64_t)BFI.getEntryFreq();
     SmallSetVector<BasicBlock*, 8> hotBBSet = getHotBBSet(F, hotBBFreqThresold, LI);  //don't extract hotBBs
-    //std::string FuncName = F.getName().str();
     BasicBlock &EntryBB = F.getEntryBlock();
     
     //EntryBB is considered as hotBB.
@@ -189,10 +186,6 @@ Fis::buildRegionsToExtract_v1(Function &F, BlockFrequencyInfo &BFI, DominatorTre
     return result;
 }
 
-/*划分区域需要考虑的因素： 
- *  1. 支配关系: 不支配的节点加入regionBeginBB集合
- *  2. hotBB  : hotBB的后继加入regionBeginBB集合
- */
 SmallVector<SmallVector<BasicBlock*, 8>, 8>
 Fis::buildRegionsToExtract_v2(Function &F, BlockFrequencyInfo &BFI, DominatorTree &DT)
 {
@@ -283,17 +276,10 @@ bool Fis::extractRegion(SmallVector<BasicBlock*, 8> BBsToExtract,
             SmallSetVector<uint, 8> lineNoSetToExtract;
             for (Instruction& I : *BB)
             {
-                // if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
-                //     if (BB->getParent() == CI->getCalledFunction()) {
-                //         DirectRecursive = true;
-                //         errs() << BB->getParent()->getName() << " DirectRecursive\n";
-                //     }
-                // }
                 if (I.getDebugLoc())
                 {
                     const DebugLoc &DL = I.getDebugLoc();
                     unsigned int line = DL.getLine();
-                    //unsigned int column = DL.getCol();
                     if (line > 0) lineNoSetToExtract.insert(line);
                 }
 
@@ -330,9 +316,6 @@ bool Fis::extractRegion(SmallVector<BasicBlock*, 8> BBsToExtract,
     NumExtractRegionSucceeded++;
     Changed = true;
     errs() << "STATISTICS Extracted: " << oldFunctionName << " to " << ExtractedFunc->getName() << " size: " << ExtractedFunc->size() << "\n";
-    // if (oldFunctionName.startswith("Queue")) {
-    // ExtractedFunc->dump();
-    // }
     if (EnableTransformStat)  //enable transform statistics for pass
     {
         StringRef newFuncName = ExtractedFunc->getName(); 
@@ -342,7 +325,6 @@ bool Fis::extractRegion(SmallVector<BasicBlock*, 8> BBsToExtract,
             {
                 //with -g option, record BB name and line number.
                 for (uint lineNo : BBName2LineNoMap[bbName])
-                    //root[KhaosName][oldFunctionName.str()][newFuncName.str()].append(bbName.str());
                     root[KhaosName][oldFunctionName.str()][newFuncName.str()][bbName.str()].append(lineNo);
             }
             else
@@ -387,7 +369,6 @@ bool Fis::runOnModule(Module &M) {
     bool Changed = false;
     
     SmallSetVector<Function *, 8> splittedFuncs;
-    // errs() << "Module Name: " << M.getName() << "\n";
     for (Function &F : M) 
     {
         //skip LLVM Intrinsic functions, function declarations, empty functions,
@@ -404,7 +385,6 @@ bool Fis::runOnModule(Module &M) {
         LLVM_DEBUG(printBBFreqency(F));
         LLVM_DEBUG(outs() << "Fis try to split function: " << F.getName() << "\n");
         errs() << "STATISTICS Funtion origin info: " << F.getName() << ", " << F.size() << "\n";
-        // F.dump();
         bool splitFlag = splittingFunction(F);
         if (splitFlag)
         {
@@ -412,9 +392,6 @@ bool Fis::runOnModule(Module &M) {
             NumSplittedFunction++;
         } 
         errs() << "STATISTICS After splitting info: " << F.getName() << ", " << F.size() << "\n";
-        // if (F.getName().startswith("Queue")) {
-        // F.dump();
-        // }
         Changed |= splitFlag;
     }
 
@@ -435,7 +412,6 @@ bool Fis::runOnModule(Module &M) {
     if (EnableTransformStat)
     {
         ofstream fd;
-        //StringRef prefixName = M.getName().rsplit('.').first;
         StringRef suffixName("_trans_stat.json");  //transform statistics
         Twine fileName = M.getName() + suffixName;
         fd.open(fileName.str(), ios::out/* | ios::app*/);

@@ -347,10 +347,6 @@ bool JumpThreadingPass::runImpl(Function &F, TargetLibraryInfo *TLI_,
                                 std::unique_ptr<BlockFrequencyInfo> BFI_,
                                 std::unique_ptr<BranchProbabilityInfo> BPI_) {
   LLVM_DEBUG(dbgs() << "Jump threading on function '" << F.getName() << "'\n");
-  // if (F.getName() == "_ZNSt6vectorI5PointILi3EESaIS1_EE14_M_fill_insertEN9__gnu_cxx17__normal_iteratorIPS1_S3_EEmRKS1__ZNSt6vectorIS_IS_IdSaIdEESaIS1_EESaIS3_EE14_M_fill_insertEN9__gnu_cxx17__normal_iteratorIPS3_S5_EEmRKS3_Fusion") {
-  //   BeginDebug = true;
-  //   // F.dump();
-  // }
   TLI = TLI_;
   LVI = LVI_;
   AA = AA_;
@@ -992,9 +988,6 @@ bool JumpThreadingPass::ProcessBlock(BasicBlock *BB) {
   if (DTU->isBBPendingDeletion(BB) ||
       (pred_empty(BB) && BB != &BB->getParent()->getEntryBlock()))
     return false;
-  // if (BeginDebug) {
-  //    errs() << "ProcessBlock: BB inst count " << BB->getInstList().size() << "\n";
-  // }
   // If this block has a single predecessor, and if that pred has a single
   // successor, merge the blocks.  This encourages recursive jump threading
   // because now the condition in this block can be threaded through

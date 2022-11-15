@@ -19,11 +19,9 @@ void DeepFusionPrepare::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool DeepFusionPrepare::runOnLoop(Loop *L, LPPassManager &LPM) {
-    // errs() << "DeepFusionPrepare::runOnLoop\n";
     if (L->getNumBlocks() > 0) {
         Function *F = L->getHeader()->getParent();
         assert(F && "A loop is must in a function!");
-        // errs() << F->getName() << " has loop(s)\n";
         FunctionsWithLoop.insert(F);
     }
     return false;

@@ -43,45 +43,24 @@ Pass *llvm::createFlattening(bool flag) { return new Flattening(flag); }
 
 
 bool Flattening::runOnModule(Module &M) {
-
 	LLVM_DEBUG(outs() << "Flattening debug!\n");
-  // if (!M.getName().equals("real.c"))
-  //   return false;
-  // errs() << "flattening: " << M.getName() << "\n";
-  // return false;
     for (auto &F : M) {
 
         bool needProtect = inConfigOrRandom(KhaosName, M, F, ObfRatio);
         if (needProtect) {
             LLVM_DEBUG(outs() << "func checked: " << F.getName() << "\n");
             if (F.getName().equals("div_significands")) continue;
-            // if (/*!F.getName().startswith("da") && !F.getName().startswith("db") &&
-            //     !F.getName().startswith("dc") && !F.getName().startswith("dd") &&
-            //     !F.getName().startswith("de") &&*/ !F.getName().startswith("df") &&
-            //     !F.getName().startswith("dg") 
-            //     && !F.getName().startswith("dh") &&
-            //     !F.getName().startswith("di") && !F.getName().startswith("dj") &&
-            //     !F.getName().startswith("dk") && !F.getName().startswith("dl") &&
-            //     !F.getName().startswith("dm") && !F.getName().startswith("dn"))
-            //       continue;
             Function *tmp = &F;
-            // Do we obfuscate
             if (toObfuscate(flag, tmp, "fla")) {
-              // outs() << "func checked: " << F.getName() << "\n";
-              
                 if (flatten(tmp)) {
                 ++Flattened;
                 }
             }
-
         } else {
             LLVM_DEBUG(outs() << "func nochecked: " << F.getName() << "\n");
         }
-
     }
-
 	return true;
-
 }
 
 bool Flattening::flatten(Function *f) {

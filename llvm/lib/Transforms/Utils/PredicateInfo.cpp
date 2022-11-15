@@ -118,11 +118,6 @@ static bool valueComesBefore(OrderedInstructions &OI, const Value *A,
     return false;
   if (ArgA && ArgB)
     return ArgA->getArgNo() < ArgB->getArgNo();
-  // if (BeginDebug) {
-  //   errs() << "valueComesBefore\n";
-  //   A->dump();
-  //   B->dump();
-  // }
   return OI.dfsBefore(cast<Instruction>(A), cast<Instruction>(B));
 }
 

@@ -36,20 +36,16 @@ namespace {
         SmallVector<Type *, 8> IntParamTypes, FloatParamTypes, F1VectorParamTypes, F2VectorParamTypes;
         uint TrampolineID = 0;
         Fus() : ModulePass(ID) {
-            // // errs() << "Fus con\n";
             initializeFusPass(*PassRegistry::getPassRegistry());
         }
             
         void getAnalysisUsage(AnalysisUsage &AU) const override {
             
             AU.addRequired<BlockFrequencyInfoWrapperPass>();
-            // if (DeepLevel > 1) {
-                // errs() << "deep level > 1\n";
                 AU.addRequired<HarmnessAnalysis>();
                 AU.addRequired<LoopInfoWrapperPass>();
                 AU.addRequired<DominatorTreeWrapperPass>();
                 AU.setPreservesAll();
-            // }
         }
         bool runOnModule(Module &M) override;
         BasicBlock *moveFunction(Function *SrcFunction,
@@ -86,8 +82,6 @@ namespace {
         uint getIntArgSize(Function *F);
         void insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
                                     ValueToValueMapTy &VMap);
-        // cleaning
-        // bool AttributeInSet(Attribute::AttrKind kind);
     };
 
 }
@@ -108,15 +102,10 @@ void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
     Value *BitCasti;
     for (argIdx = 0; argIdx < Old->arg_size(); argIdx++) {
         Argi = Old->getArg(argIdx);
-        // // errs() << "ArgiType: ";
         ArgiType = Argi->getType();
-        // ArgiType->dump();
-        // Argi->dump();
         if (ArgiType->isFloatingPointTy()) {
             if (ArgiType != FloatParamTypes[floatIndex]) {
                 // add a bit cast to argi
-                // BitCasti = TruncInst::CreateFPCast(Argi, FloatParamTypes[floatIndex], "", I);
-                // FloatArgs.push_back(BitCasti);
                 Instruction::CastOps CastOp = CastInst::getCastOpcode(Argi,
                                                                 false, FloatParamTypes[floatIndex], false);
                 BitCasti = CastInst::Create(CastOp, Argi, FloatParamTypes[floatIndex], "", TrampolineBB);
@@ -139,19 +128,6 @@ void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
         } else {
             if (ArgiType != IntParamTypes[intIndex]) {
                 // add a bit cast to argi
-                // // errs() << "adding a cast\n";
-                // // errs() << "source type: ";
-                // ArgiType->dump();
-                // // errs() << "dest type: ";
-                // IntParamTypes[intIndex]->dump();
-                // note: should we consider the sign flag?
-                // Since the fusion's param is merged(larger or equal),
-                // we may need an s/z ext, we use sext for now.
-                // BitCasti = CastInst::CreateIntegerCast(Argi, IntParamTypes[intIndex], true, "", I);
-                if (IntParamTypes[intIndex]->isVectorTy()) {
-                    // // errs() << "found vector type:\n";
-                    // IntParamTypes[intIndex]->dump();
-                }
                 Instruction::CastOps CastOp = CastInst::getCastOpcode(Argi,
                                                                 false, IntParamTypes[intIndex], false);
                 BitCasti = CastInst::Create(CastOp, Argi, IntParamTypes[intIndex], "", TrampolineBB);
@@ -187,29 +163,17 @@ void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
     NewArgs.append(IntArgs.begin(), IntArgs.end());
     NewArgs.append(FloatArgs.begin(), FloatArgs.end());
     NewArgs.append(VectorArgs.begin(), VectorArgs.end());
-
-    // bool noUse = oldFuncRetVoid || I->user_empty();
     ArrayRef<Value *> NewArgsArr(NewArgs);
     
-    // // errs() << "Direct callsite: \n";
     CallInst *NewCallInst = CallInst::Create(New, NewArgsArr, "", TrampolineBB);
     NewCallInst->setCallingConv(New->getCallingConv());
-            // if (CI->isTailCall()) {
-            //     NewCallInst->setTailCall(true);
-            // }
     Type *OldReturnType = Old->getReturnType();
     if (!OldReturnType->isVoidTy()) {
         if (OldReturnType != NewCallInst->getType()) {
-            // if (OldReturnType->isVectorTy() || OldReturnType->isAggregateType()) {
-            //     CastInst * ReturnCastInst = CastInst::CreateBitOrPointerCast(NewCallInst, OldReturnType->getPointerTo(), "", TrampolineBB->back());
-            //     LoadInst *Pointer = new LoadInst(ReturnCastInst, "", TrampolineBB);
-            //     ReturnInst::Create(M->getContext(), Pointer, TrampolineBB);
-            // } else {
             Instruction::CastOps CastOp = CastInst::getCastOpcode(NewCallInst,
                                                             false, OldReturnType, false);
             Value *BitCast = CastInst::Create(CastOp, NewCallInst, OldReturnType, "", TrampolineBB);
             ReturnInst::Create(M->getContext(), BitCast, TrampolineBB);
-            // }
         } else {
             ReturnInst::Create(M->getContext(), NewCallInst, TrampolineBB);
         }
@@ -220,10 +184,6 @@ void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
 }
 
 bool Fus::runOnModule(Module &M) {
-    // return false;
-    // errs() << "Fus\n";
-    // M.dump();
-    // errs() << "Deep Fusion Level: " << DeepLevel << "\n";
     MM = &M;
     C = &M.getContext();
     VoidTy = Type::getVoidTy(*C);
@@ -263,61 +223,10 @@ bool Fus::runOnModule(Module &M) {
             }
         }
     }
-    // // errs() << "functions may propagate:\n";
-    // for (auto func : FuncsMayPropagate) {
-    //     // errs() << func->getName() << "\n";
-    // }
     for (auto &F : M) {
-        // LBM_storeVelocityField and LBM_compareVelocityField
-        // _ZN9regmngobj13createregionsEi_ZN9regmngobj19defineneighborhood1EvFusion
-        // _ZN9regmngobj13defineregionsEv_ZN15largesolidarrayIP6regobjE8doublingEvFusion
-        // _ZN9regmngobj7loadmapEPKc_ZN9regmngobj7initmapEiiFusion
-        // getDpbSize and init_dpb
-        // _ZN6soplex12SPxParMultPRD0Ev and _ZNK6soplex6SoPlex23qualConstraintViolationERdS1_
-        // _ZN6cEnvir5setupEiPPc and _ZN6cEnvir3runEv
-        // _ZN7cModuleC2EPKcPS_ and _ZN7cModuleD2Ev
-        // _ZN11cSimulationD2Ev and _ZN11cSimulation13deleteNetworkEv | 471 segv todo
-        // _ZN16ExecuteOnStartupC2EPFvvE and _ZN16ExecuteOnStartupD2Ev | 471 atexit arg is a bitcast and this bitcast is used multi times
-        // _ZL8_do_listP7cObjectbRSo and _ZN7cObjectnwEm 
-        // _ZN16ExecuteOnStartupD2Ev and _ZN16ExecuteOnStartup10executeAllEv
-        // _ZN12pov_frontend13MessageOutput8InitInfoEP9POVMSDataS2_i and _ZN12pov_frontend13MessageOutput13RenderOptionsEP9POVMSDataS2_i
-        // _ZN3pov8f_bicornEPdj and _ZN3pov9f_bifoliaEPdj
-        // _ZNSt6vectorI5PointILi3EESaIS1_EE14_M_fill_insertEN9__gnu_cxx17__normal_iteratorIPS1_S3_EEmRKS1_ and _ZNSt6vectorIS_IS_IdSaIdEESaIS1_EESaIS3_EE14_M_fill_insertEN9__gnu_cxx17__normal_iteratorIPS3_S5_EEmRKS3_
-        // _ZN10cMessage30C2ERKS__delete_notnull_i and _ZN10cMessage30C2ERKS__eh_resume
-        // LBM_storeVelocityField LBM_compareVelocityField 
-        // read_gauge_hdr and r_serial
-        // _ZThn352_N6soplex9SPxSolverD1Ev and _ZThn352_N6soplex9SPxSolverD0Ev
-        // merging _ZNSt22__uninitialized_fill_nILb0EE15__uninit_fill_nIP6VectorIdEmS3_EET_S5_T0_RKT1_ and _ZN25CompressedSparsityPatternC2Ejj
-        // merging default_bzalloc and BZ2_bzWriteOpen
-        // merging save_parallel and save_checkpoint
-        // quantum_set_decoherence and quantum_hadamard
-        // merging _ZN6soplex6SoPlex11enterVectorERKNS_5SPxIdE and _ZN8MySoPlexD0Ev
-        // pec_fread and spec_getc
-        // merging Perl_pp_binmode and Perl_pp_untie
-        // merging change_address_1 and constant_subword
-        // merging print_operand_address and output_387_binary_op
-        // merging read_v3_gauge_hdr and parallel_open
-        // merging get_i and qcdhdr_get_hdr
-        // merging _ZN8LargeLAN13doBuildInsideEv_invoke_cont1963 and _ZN9MediumLAN13doBuildInsideEv_invoke_cont1281
-        // merging init_c_lex_land_lhs_true and cb_file_change_if_then28
-        // Init_QMatrix_extracted.18 and CalculateQuantParam
-        // merging Configure_extracted.244 and GetConfigFileContent
-        // merging Configure_entry_while_body_i_crit_edge and GetConfigFileContent
-        // _ZN9FastBoard15nbr_criticalityEii and _ZNSt6vectorIhSaIhEE17_M_default_appendEm
-        // merging _ZN6dealii8internal8DoFTools12_GLOBAL__N_134ensure_existence_of_subface_matrixILi3ELi3EEEvRKNS_13FiniteElementIXT_EXT0_EEES7_jRN5boost10shared_ptrINS_10FullMatrixIdEEEE and _ZN6dealii8internal8DoFTools12_GLOBAL__N_118filter_constraintsERKSt6vectorIjSaIjEES7_RKNS_10FullMatrixIdEERNS_16ConstraintMatrixE
-        // merging _ZN6dealii11SolverGMRESINS_6VectorIdEEE5solveINS_12SparseMatrixIdEENS_9SparseILUIdEEEEvRKT_RS2_RKS2_RKT0_ and _ZN6dealii11SolverGMRESINS_6VectorIdEEED0Ev
-        // merging _ZN9EnvirBase15checkTimeLimitsEv and _ZN9EnvirBase31stoppedWithTerminationExceptionER21cTerminationException
-        // TODO: this is a bug, fix it
-        if (F.getName().startswith("sha_crypt") || F.getName().startswith("OPENSSL_cpuid_setup"))
-            continue;
-        if (F.getName().startswith("wc_lines_avx2") || F.getName().startswith("__warn_memset_zero_len"))
-            continue;
-        // gl_dynarray_resizeFusion
         if (F.isIntrinsic() || F.isDeclaration() || F.isVarArg())
             continue;
         if (FissionedFunctionOnly && !F.isCreatedByKhaos()) {
-            // // errs() << "FissionedFunctionOnly && !F.isCreatedByKhaos()\n";
-            // // errs() << F.getName() << "\n";
             continue;
         }
         if (OriginFunctionOnly 
@@ -332,24 +241,18 @@ bool Fus::runOnModule(Module &M) {
             || F.getName().find("extract_ptrval") != StringRef::npos
             || F.getName().find("extract_ctrlbit") != StringRef::npos
             || F.getName().find("extract_ctrlsign") != StringRef::npos
-            || F.getName().find("get_random") != StringRef::npos)
-            continue;
-        TotalCount++;
-        // function SolverGMRES::solve can not be processed, both fusion or fission
-                                    // _ZN6dealii8SolverCG    INS_6VectorIdEEE5solveINS_12SparseMatrixIdEENS_16PreconditionSSORIS6_EEEEvRKT_RS2_RKS2_RKT0_
-                                    //_ZN6dealii11SolverGMRES
-        if (F.getName().contains("INS_6VectorIdEEE5solveIN")
+            || F.getName().find("get_random") != StringRef::npos
+            || F.getName().contains("INS_6VectorIdEEE5solveIN") // TODO: this is a bug, fix it
             || F.getName().equals("_ZN9EnvirBase15checkTimeLimitsEv")
             || F.getName().startswith("_ZN9TOmnetApp15checkTimeLimitsEv")
             || F.getName().equals("ci_compare")
-            /*|| (F.isCreatedByKhaos() && F.getName().startswith("globextend_extracted"))*/) {
-            // errs() << "skipping unfusionable function\n";
+            || F.getName().startswith("sha_crypt") 
+            || F.getName().startswith("OPENSSL_cpuid_setup")
+            || F.getName().startswith("wc_lines_avx2") 
+            || F.getName().startswith("__warn_memset_zero_len"))
             continue;
-        }
-        // if (!F.getName().equals("cal_file_if_end2_split") && !F.getName().equals("log"))
-        //     continue;
+        TotalCount++;
         if (FuncsMayPropagate.count(&F)) {
-            // errs() << "FuncsMayPropagate: " << F.getName() << "\n";
             continue;
         }
         bool MayVarArg = false;
@@ -359,7 +262,6 @@ bool Fus::runOnModule(Module &M) {
                 if (PointerType *TargetPointerType = dyn_cast<PointerType>(TargetType)) {
                     if (FunctionType *TargetFunctionType = dyn_cast<FunctionType>(TargetPointerType->getElementType())) {
                         if (TargetFunctionType->getFunctionNumParams() > F.arg_size()) {
-                            // errs() << F.getName() << " MayVarArg\n";
                             MayVarArg = true;
                             break;
                         }
@@ -386,8 +288,6 @@ bool Fus::runOnModule(Module &M) {
             for (auto &Argi : F.args()) {
                 if (Argi.getType()->isStructTy()) {
                     StructArg = true;
-                    // errs() << "We do not merge struct arg type for now\n";
-                    // errs() << F.getName() << "\n";
                     break;
                 }
             }
@@ -420,17 +320,8 @@ bool Fus::runOnModule(Module &M) {
             }
         }
     }
-    // for (Module::global_iterator gi = M.global_begin(); gi != M.global_end(); gi++) {
-    //     GlobalVariable *GV = &*gi;
-    //     if (GV && !GV->use_empty() && GV->hasInitializer()) {
-    //         // // errs() << "build " << GV->getName() << "\n";
-    //         buildFunctionReferenceMap(GV->getInitializer(), 0, GV, GV);
-    //     }            
-    // }
-
     // // errs() << "IntFuncsToFusion: " << IntFuncsToFusion.size() << "\n";
     // // errs() << "FloatFuncsToFusion: " << FloatFuncsToFusion.size() << "\n";
-    // M.dump();
     TrampolineID = 0;
     uint MergeCount = 0;
     std::map<uint, uint> ArgSizeCount;
@@ -471,10 +362,6 @@ bool Fus::runOnModule(Module &M) {
         }
         
         MergeCount++;
-        // if (MergeCount < 3309)
-        //     continue;
-        // if (MergeCount >= 3310)
-        //     continue;
         // !!! do not delete this output util everything is ok
         // errs() << "merging " << F1->getName() << " and " << F2->getName() << "\n";
         outs() << "STATISTICS: merging " << F1->getName() << " and " << F2->getName() << " arg size1: " << F1->arg_size() << " arg size2: " << F2->arg_size() << "\n";
@@ -490,7 +377,6 @@ bool Fus::runOnModule(Module &M) {
         }
         // F1->dump();
         // F2->dump();
-        // M.dump();
         ValueToValueMapTy VMap;
         FusionParamTypes.clear();
         IntParamTypes.clear();
@@ -607,9 +493,6 @@ bool Fus::runOnModule(Module &M) {
             if (Argi->getType()->isFloatingPointTy()) {
                 if (FusionParamTypes[indexFloat] != Argi->getType()) {
                     // We meet a float type param, add an entry for float
-                    //outs() << "add bit cast for float\n";
-                    // Casti = TruncInst::CreateFPCast(FusionFunction->getArg(indexFloat),
-                    //                 Argi->getType(), "", BitCastForF2);
                     Instruction::CastOps CastOp = CastInst::getCastOpcode(FusionFunction->getArg(indexFloat),
                                                                         false, Argi->getType(), false);
                     Casti = CastInst::Create(CastOp, FusionFunction->getArg(indexFloat),
@@ -650,35 +533,6 @@ bool Fus::runOnModule(Module &M) {
             deepFusionLevel1(VMap, F1, F2, true);
             // step 2, level 1 for F2->F1
             deepFusionLevel1(VMap, F2, F1, false);
-
-            // if (deepFusionLevel1(VMap, F1, F2, true)) {
-            //     // good, this one is succeed, record it
-            //     FusionFunctionBK = CloneFunction(FusionFunction, BKVMap);
-            // } else {
-            //     // roll back
-            //     // errs() << "deepFusionLevel1 failed\n";
-            //     FusionFunction->replaceAllUsesWith(FusionFunctionBK);
-            //     FusionFunction->dropAllReferences();
-            //     FusionFunction->eraseFromParent();
-            //     FusionFunction = FusionFunctionBK;
-            //     // re-clone
-            //     FusionFunctionBK = CloneFunction(FusionFunction, BKVMap);
-            // }
-            // // step 2, level 1 for F2->F1
-            // BKVMap.clear();
-            // if (deepFusionLevel1(VMap, F2, F1, false)) {
-            //     // good, this one is succeed, record it
-            //     FusionFunctionBK = CloneFunction(FusionFunction, BKVMap);
-            // } else {
-            //     // roll back
-            //     // errs() << "deepFusionLevel1 failed\n";
-            //     FusionFunction->replaceAllUsesWith(FusionFunctionBK);
-            //     FusionFunction->dropAllReferences();
-            //     FusionFunction->eraseFromParent();
-            //     FusionFunction = FusionFunctionBK;
-            //     // re-clone
-            //     FusionFunctionBK = CloneFunction(FusionFunction, BKVMap);
-            // }
             // step 3, level 2 for F1 and F2
             if (DeepLevel > 1 && DeepFusionMode) {
                 // backup
@@ -708,7 +562,7 @@ bool Fus::runOnModule(Module &M) {
         FusionFunction->setCallingConv(min(F1->getCallingConv(), F2->getCallingConv()));
         FusionFunction->setCreatedByKhaos(true);
         FusionFunction->setDSOLocal(true);
-        // // errs() << "Fusion successed\n";
+        // errs() << "Fusion successed\n";
         // F1->dump();
         // FusionFunction->dump();
         // M.dump();
@@ -724,7 +578,6 @@ bool Fus::runOnModule(Module &M) {
             replaceIndirectUsers(F1, FusionFunction, true);
             replaceIndirectUsers(F2, FusionFunction, false);
         }
-        // // errs() << "replaceDirectCallers done\n";
         assert(F1->getNumUses() == 0 && F2->getNumUses() == 0 && "there should not be any uses to old function");
 
         // delete the origin body.
@@ -740,26 +593,10 @@ bool Fus::runOnModule(Module &M) {
             F2->eraseFromParent();
         }
     }
-    // FusionFunction->dump();
-    // for (auto it = ArgSizeCount.begin(), ie = ArgSizeCount.end(); it != ie; it++) {
-    //     uint ArgSize = it->first;
-    //     uint Count = it->second;
-    //     // errs() << ArgSize << ": " << Count << "\n";
-    // }
-    // ArgSizeCount.clear();
-    // // errs() << "fusion done\n";
-    // for (auto it = FusionArgSizeCount.begin(), ie = FusionArgSizeCount.end(); it != ie; it++) {
-    //     uint ArgSize = it->first;
-    //     uint Count = it->second;
-    //     // errs() << ArgSize << ": " << Count << "\n";
-    // }
-    // FusionArgSizeCount.clear();
     if (!FissionedFunctionOnly) {
         extractPtrAndCtrlBitAtICall(M);
     }
-    // 
     
-    BeginDebug = false;
     outs() << "STATISTICS: fusion ended, merged " << MergeCount*2 << " of " << TotalCount << " functions\n";
 	// M.dump();
     return true;
@@ -778,13 +615,11 @@ uint Fus::getIntArgSize(Function *F) {
 
 void Fus::getFunctionUsed(Instruction *I, SetVector<Function *> &UsedFunctions) {
     if (CallBase *CB = dyn_cast<CallBase>(I)) {
-        // CB->dump();
         CallSite CS(CB);
         Value* Argi;
         for (unsigned argIdx = 0; argIdx < CS.arg_size(); argIdx++) {
             Argi = getExactValue(CS.getArgument(argIdx));
             if (Function * func = dyn_cast<Function>(Argi)) {
-                // // errs() << "propagate function pointer: " << func->getName() << "\n";
                 UsedFunctions.insert(func);
             }
         }
@@ -800,12 +635,6 @@ pair<Function *, Function *> Fus::randomChooseFromSet(SetVector<Function *> &set
     Function *theFirst = set.front();
 
     set.remove(theFirst);
-    // Function *theSecond = set.front();
-    // set.remove(theSecond);
-    // theTwoToFusion = make_pair(theFirst, theSecond);
-    // // Once we remove one element, the size of set varies too.
-    // return theTwoToFusion;
-    // // errs() << "first: " << theFirst->getName() << "\n";
     unsigned size = set.size();
     if (size == 0)
         return make_pair(theFirst, nullptr);
@@ -861,16 +690,10 @@ pair<Function *, Function *> Fus::randomChooseFromSet(SetVector<Function *> &set
     // normal path
     do {
         theSecond = set[idx];
-        // // errs() << "second: " << theSecond->getName() << "\n";
-        // if (FissionedFunctionOnly) {
-            // // errs() << "theFirst->getOriginNameLength(): " << theFirst->getOriginNameLength() << "\n";
-            // // errs() << "theSecond->getOriginNameLength(): " << theSecond->getOriginNameLength() << "\n";
         StringRef F1OriginName = theFirst->getOriginNameLength() > 0 ? theFirst->getName().substr(0, theFirst->getOriginNameLength()) : theFirst->getName();
         StringRef F2OriginName = theSecond->getOriginNameLength() > 0 ? theSecond->getName().substr(0, theSecond->getOriginNameLength()) : theSecond->getName();
-        // // errs() << "F1 origin: " << F1OriginName << "\n";
-        // // errs() << "F2 origin: " << F2OriginName << "\n";
         if (F1OriginName == F2OriginName) {
-            // // errs() << "these two belong's to one function, choose another function.\n";
+            // errs() << "these two belong's to one function, choose another function.\n";
             theSecond = nullptr;
             idx = (idx+1) % size;
             continue;
@@ -898,7 +721,6 @@ void Fus::collectFunctionParams(Function *F,
         SmallVector<Type *, 8> &FloatParamTypes,
         SmallVector<Type *, 8> &VectorParamTypes,
         ValueToValueMapTy &VMap) {
-    //outs() << "collectFunctionParams: " << F->getName() << "\n";
     Argument *Argi;
     Type * ArgiType;
     for (uint i = 0; i < F->arg_size(); i++) {
@@ -907,31 +729,14 @@ void Fus::collectFunctionParams(Function *F,
         if (VMap.count(Argi) != 0)
             continue;
         ArgiType = Argi->getType();
-        //ArgiType->dump();
         if (ArgiType->isFloatingPointTy()) {
             FloatParamTypes.push_back(ArgiType);
-            // // We meet a float type param, check if we can reuse old params.
-            // if (indexFloat >= FloatParamNames.size())
-            // {
-            //     // We need to add a new float param
-            //     FloatParamNames.push_back(string("argf_").append(itostr(indexFloat)));
-            //     outs() << "argf_" << indexFloat << "\n";
-            // }
-            // indexFloat++;
         }
         else if (ArgiType->isVectorTy()) {
             VectorParamTypes.push_back(ArgiType);
         }
         else {
             IntParamTypes.push_back(ArgiType);
-            // // We meet a int type param, check if we can reuse old params.
-            // if (indexInt >= IntParamNames.size())
-            // {
-            //     // We need to add a new int param
-            //     IntParamNames.push_back(string("argi_").append(itostr(indexInt)));
-            //     outs() << "argi_" << indexInt << "\n";
-            // }
-            // indexInt++;
         }
     }
 }
@@ -985,7 +790,6 @@ BasicBlock *Fus::moveFunction(Function *SrcFunction,
                                                 ValueToValueMapTy &VMap) {
     // TODO: Calculate the entry frequency of the new root block to preserve profile info?
     // TODO: Remove @llvm.assume calls that will be moved to the new function from the old functions assumption cache?
-    // // errs() << "moveFunction\n";
     LLVMContext &C = M->getContext();
     const DataLayout &DL = M->getDataLayout();
     SmallVector<ReturnInst*, 8> Returns;
@@ -993,8 +797,6 @@ BasicBlock *Fus::moveFunction(Function *SrcFunction,
     unsigned oldBBNum = DestFunction->size();
     CloneFunctionInto(DestFunction, SrcFunction, VMap, true, Returns, "",
                     CodeInfo);
-    // // errs() << "moveFunction done\n";
-    // DestFunction->dump();
     BasicBlock *retBlock = nullptr;
     // correct return inst
     SmallVector<Instruction *, 4> InstsToKill;
@@ -1007,27 +809,17 @@ BasicBlock *Fus::moveFunction(Function *SrcFunction,
                     //outs() << "found a return inst\n";
                     if (Value * RetValue = RI->getReturnValue()) {
                         Type *OldReturnType = RetValue->getType();
-                        // // errs() << SrcFunction->getName() << "\n";
-                        // // errs() << "OldReturnType: ";
-                        // OldReturnType->dump();
-                        // // errs() << "OldReturnType: " << OldReturnType->isAggregateType() << OldReturnType->isVectorTy() << "\n";
-                        // // errs() << "DestReturnType: ";
-                        // DestReturnType->dump();
-                        // // errs() << "DestReturnType: " << DestReturnType->isAggregateType() << DestReturnType->isVectorTy() << "\n";
                         if (OldReturnType != DestReturnType) {
                             // add a bitcast
                             Value * NewRetValue;
                             if (OldReturnType->isVectorTy() || OldReturnType->isAggregateType()) {
                                 // we need to create a pointer to than return value
-                                // RetValue->getType()->dump();
-                                // // errs() << "OldReturnType is Aggregate or Vector: " << OldReturnType->isAggregateType() << OldReturnType->isVectorTy() << "\n";
                                 assert("OldReturnType is Aggregate or Vector");
                                 AllocaInst *Pointer = new AllocaInst(OldReturnType, DL.getAllocaAddrSpace(), "", RI);
                                 new StoreInst(RetValue, Pointer, RI);
                                 Instruction::CastOps CastOp = CastInst::getCastOpcode(Pointer,
                                                                         false, DestReturnType, false);
                                 NewRetValue = CastInst::Create(CastOp, Pointer, DestReturnType, "", RI);
-                                // NewRetValue->dump();
                             } else if (DestReturnType->isFloatingPointTy()) {
                                 NewRetValue = TruncInst::CreateFPCast(RetValue, DestReturnType, "", RI);
                             } else {
@@ -1077,15 +869,12 @@ bool Fus::isEHRelatedFunction(Function *F) {
 }
 
 void Fus::deepFusionLevel1(ValueToValueMapTy &VMap, Function *from, Function *to, bool IsFirst) {
-    // // errs() << "deep fusion level 1\n";
     // we do not handle exception irrelevent function
     if (isEHRelatedFunction(from)) {
         return;
     }
     unsigned idxFrom = rand() % (from->size()/2 + from->size()%2);
     unsigned idxTo = rand() % (to->size());
-    // // errs() << "idxFrom: " << idxFrom << "\n";
-    // // errs() << "idxTo: " << idxTo << "\n";
     auto itFrom = from->begin();
     auto itTo = to->begin();
     while (idxFrom-- > 0)
@@ -1098,20 +887,13 @@ void Fus::deepFusionLevel1(ValueToValueMapTy &VMap, Function *from, Function *to
     BasicBlock *fromBB = dyn_cast<BasicBlock>(valueFrom);
     BasicBlock *toBB = dyn_cast<BasicBlock>(valueTo);
     if (fromBB && toBB) {
-        // fromBB->dump();
-        // toBB->dump();
         insertOpaquePredict(fromBB, toBB, IsFirst);
     } else {
         // errs() << "Can not find the corresponding bb in fusion function.\n";
     }
-    // return !verifyFunction(*FusionFunction);
 }
 
 bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
-    // // errs() << "deep fusion level 2\n";
-    // F1->dump();
-    // F2->dump();
-    // FusionFunction->dump();
     // 0. merge all the allocas to the Fusion's entry
     moveAllocas();
     // 1. find a mergable pair of basic blocks from f1 and f2
@@ -1127,12 +909,10 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
     BasicBlock *BBF1 = getOneHarmlessBasicBlock(HarmlessBBF1);
     BasicBlock *BBF2 = getOneHarmlessBasicBlock(HarmlessBBF2);
     if (BBF1 == nullptr || BBF2 == nullptr) {
-        // // errs() << "no suitable harmless basic block found, return\n";
+        // errs() << "no suitable harmless basic block found, return\n";
         return true;
     }
     outs() << "STATISTICS: HarmlessBB size" << BBF1->size() << " " << BBF2->size() << "\n";
-    // BBF1->dump();
-    // BBF2->dump();
     // 2. get corresponding pair in fusion
     // level 1 deep fusion would split the bb, which affects the mapping
     // use the last instruction to find the correct bb
@@ -1147,7 +927,7 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
     if (BB1 == &FusionFunction->getEntryBlock() || 
         BB2 == &FusionFunction->getEntryBlock() ||
         BB1 == BB2) {
-        // // errs() << "We cannot merge entry BB\n";
+        // errs() << "We cannot merge entry BB\n";
         return true;
     }
     for (BasicBlock *Pred : predecessors(BB1)) {
@@ -1155,7 +935,6 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
             for (BasicBlock *Pred2 : predecessors(BB2)) {
                 if (Pred2 == &FusionFunction->getEntryBlock()) {
                     // this means we are merging entry BB's successor, which is meaningless
-                    // errs() << "We won't merge entry BB's successor\n";
                     return true;
                 }
             }
@@ -1167,10 +946,6 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
     BB2 = preprocessToMergable(BB2);
     // After the preprocess, the candidates maybe small.
     // If they are small(like a branch), cancel the merge.
-    // FusionFunction->getParent()->dump();
-    // // errs() << "deep fusion candidate:\n";
-    // BB1->dump();
-    // BB2->dump();
     if (BB1->size() == 1 || BB2->size() == 1) {
         // errs() << "they are too small to merge\n";
         return true;
@@ -1227,15 +1002,11 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
     while (size > 1) {
         Instruction *ToMove = &BB1->front();
         assert(!isa<PHINode>(ToMove) && "There should't be any PHIs in BB1\n");
-        // // errs() << "moving\n";
-        // ToMove->dump();
-        // BB2->dump();
         ToMove->moveAfter(InsertPos);
         InsertPos = ToMove;
         // simply move instruction is not enough
         // 6. add phis in BB2, these phis are for BB1's instruction
         // phi [null, BB2's pred], [normal_value, BB1's pred]
-
         if (PHINode *phi = dyn_cast<PHINode>(ToMove)) {
             for (BasicBlock *Pred : predecessors(BB2)) {
                 phi->addIncoming(Constant::getNullValue(phi->getType()), Pred); 
@@ -1257,8 +1028,6 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
                     // no need
                     continue;
                 }
-                // // errs() << "adding phi for\n";
-                // Opi->dump();
                 PHINode *phi = PHINode::Create(Opi->getType(), 0, "", &BB2->front());
                 for (BasicBlock *Pred : predecessors(BB1)) {
                    phi->addIncoming(Opi, Pred); 
@@ -1266,12 +1035,7 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
                 for (BasicBlock *Pred : predecessors(BB2)) {
                    phi->addIncoming(Constant::getNullValue(Opi->getType()), Pred); 
                 }
-                // // errs() << "phi:\n";
-                // phi->dump();
                 ToMove->replaceUsesOfWith(Opi, phi);
-                // // errs() << "after replace\n";
-                // ToMove->dump();
-                // BB2->dump();
             }
         }
     }
@@ -1279,8 +1043,6 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
     for (auto it = ValuesNeedPHIForBB1.begin(), 
               ie = ValuesNeedPHIForBB1.end(); it != ie; it++) {
         Value *ValueNeedPHI = it->first;
-        // // errs() << "this value needs phi\n";
-        // ValueNeedPHI->dump();
         PHINode *phi = PHINode::Create(ValueNeedPHI->getType(), 0, "", &BB2->front());
         for (BasicBlock *Pred : predecessors(BB1)) {
             phi->addIncoming(ValueNeedPHI, Pred); 
@@ -1290,10 +1052,8 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
         }
 
         SetVector<Instruction*> *UseInsts = it->second;
-        // // errs() << "they are using it\n";
         while (UseInsts->size()) {
             Instruction *UseInst = UseInsts->pop_back_val();
-            // UseInst->dump();
             UseInst->replaceUsesOfWith(ValueNeedPHI, phi);
         }
     }
@@ -1301,8 +1061,6 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
               ie = ValuesNeedPHIForBB2.end(); it != ie; it++) {
         Value *ValueNeedPHI = it->first;
         SetVector<Instruction*> *UseInsts = it->second;
-        // // errs() << "this value needs phi\n";
-        // ValueNeedPHI->dump();
         PHINode *phi = PHINode::Create(ValueNeedPHI->getType(), 0, "", &BB2->front());
         for (BasicBlock *Pred : predecessors(BB2)) {
             phi->addIncoming(ValueNeedPHI, Pred); 
@@ -1310,18 +1068,12 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
         for (BasicBlock *Pred : predecessors(BB1)) {
             phi->addIncoming(Constant::getNullValue(ValueNeedPHI->getType()), Pred); 
         }
-        // // errs() << "they are using it\n";
         while (UseInsts->size()) {
             Instruction *UseInst = UseInsts->pop_back_val();
-            // UseInst->dump();
             UseInst->replaceUsesOfWith(ValueNeedPHI, phi);
         }
     }
-    // // errs() << "BB2:\n";
-    // BB2->dump();
     BB1->replaceAllUsesWith(BB2);
-    // BB1->dump();
-    // BB2->dump();
     
     BranchInst *BI1 = dyn_cast<BranchInst>(&BB1->back());
     BranchInst *BI2 = dyn_cast<BranchInst>(&BB2->back());
@@ -1335,10 +1087,6 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
     ICmpInst *icmp = new ICmpInst(*BB2, ICmpInst::ICMP_EQ, LHS, RHS);
     BranchInst::Create(TargetBB1, TargetBB2, (Value *)icmp, BB2);
     BB1->eraseFromParent();
-    // // errs() << "BB2:\n";
-    // BB2->dump();
-    // FusionFunction->dump();
-    // // errs() << "deep fusion level 2 done\n";
     if (!verifyFunction(*FusionFunction)) {
         outs() << "STATISTICS: deepFusionLevel2 succeed\n";
         return true;
@@ -1351,8 +1099,6 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
 BasicBlock* Fus::preprocessToMergable(BasicBlock *BB) {
     // split the head and tail, get the body part
     // split head
-    // // errs() << "preprocessToMergable\n";
-    // BB->dump();
     BasicBlock::iterator i1 = BB->begin();
     if (&*i1 != BB->getFirstNonPHIOrDbgOrLifetime()) {
         i1 = (BasicBlock::iterator)BB->getFirstNonPHIOrDbgOrLifetime();
@@ -1371,12 +1117,8 @@ BasicBlock* Fus::preprocessToMergable(BasicBlock *BB) {
     // We may optimize this later, adding bitcasts or phis instead of spiliting.
     i1 = --(BB->end());
     if (ReturnInst *bi = dyn_cast<ReturnInst>(&*i1)) {
-        // // errs() << "before split return\n";
-        // BB->dump();
         BB->splitBasicBlock(i1);
     }
-    // // errs() << "after preprocess:\n";
-    // BB->dump();
     return BB;
 }
 
@@ -1417,34 +1159,8 @@ void Fus::getHarmlessBasicBlocks(Function *F, std::vector<BasicBlock *> &Harmles
             }
             if (BBMeanful) {
                 HarmlessBB.push_back(&BB);
-                // // errs() << "found a harmless bb\n";
-                // BB.dump();
             }
         }
-        // BB.dump();
-        // bool Harmless = true;
-        // for (Instruction &I : BB) {
-        //     if (HarmnessMap.count(&I)) {
-        //         if (HarmnessMap.lookup(&I) > 0)
-        //             Harmless = false;
-        //     } else Harmless = false;
-        // }   
-        // if (Harmless) {
-        //     // && BB.size() > 1
-        //     uint InstCount  = 0;
-        //     for (auto &Inst : BB) {
-        //         if (isa<BranchInst>(&Inst) || isa<PHINode>(&Inst)
-        //             || isa<CmpInst>(&Inst) || isa<ReturnInst>(&Inst))
-        //             continue;
-        //         InstCount++;
-        //     }
-        //     if (InstCount > 0) {
-        //         HarmlessBB.push_back(&BB);
-        //         // // errs() << "found a harmless bb\n";
-        //         // BB.dump();
-        //     }
-        // }
-    }
 }
 
 // key: values need phi
@@ -1456,9 +1172,6 @@ void Fus::getValuesNeedPHI(BasicBlock *Root, std::map<Value*, SetVector<Instruct
         if (&BB == Root)
             continue;
         if (DT->dominates(Root, &BB)) {
-            // // errs() << "dominates\n";
-            // BB.dump();
-            // DominatorTreeBB.push_back(&BB);
             for (auto &Inst : BB) {
                 // for all the instructions root dominates,
                 // all its operands should be dominated by the root after deep fusion
@@ -1495,8 +1208,6 @@ void Fus::getValuesNeedPHI(BasicBlock *Root, std::map<Value*, SetVector<Instruct
                             // this operand is defined before root bb, which needs a phi
                             // we record this instruction and the value
                             // which will be used when adding phis and replaceUseOfWith
-                            // // errs() << "Operand needs a phi.\n";
-                            // Opi->dump();
                             SetVector<Instruction*> *UseInsts;
                             if (Values.find(Opi) != Values.end()) {
                                 // we already know, record this use inst
@@ -1506,7 +1217,6 @@ void Fus::getValuesNeedPHI(BasicBlock *Root, std::map<Value*, SetVector<Instruct
                                 UseInsts = new SetVector<Instruction*>();
                                 Values[Opi] = UseInsts;
                             }
-                            // UseInsts->insert(&Inst);
                             if (!UseInsts->count(&Inst)) {
                                 UseInsts->insert(&Inst);
                             }
@@ -1524,8 +1234,6 @@ void Fus::moveAllocas() {
         for (Instruction &I : BB) {
             if (isa<AllocaInst>(I)) {
                 toMove.push_back(&I);
-                // I.moveAfter(InsertPoint);
-                // InsertPoint = &I;
             }
         }
     }
@@ -1562,7 +1270,6 @@ void Fus::insertOpaquePredict(BasicBlock *from, BasicBlock * to, bool IsFirst) {
 
     std::string AsmStr("nop #");
     AsmStr.append(to->getName().str());
-    // // errs() << "after set name: " << to->getName() << "\n";
     
     std::string TrampolineName("deep_trampoline");
     TrampolineName.append(itostr(TrampolineID));
@@ -1570,27 +1277,16 @@ void Fus::insertOpaquePredict(BasicBlock *from, BasicBlock * to, bool IsFirst) {
     FunctionType *AsmTy = FunctionType::get(VoidTy, {}, false);
     Value * Nop = InlineAsm::get(AsmTy, AsmStr, "", false);
     CallInst *TrampolineCall = CallInst::Create(Nop, {}, "", TrampolineBB);
-    // BranchInst::Create(TrampolineBB, TranpolineBB);
-    // new UnreachableInst(*C, TrampolineBB);
     BlockAddress *TrampolineAddress = BlockAddress::get(TrampolineBB);
     IndirectBrInst::Create(TrampolineAddress, 1, TrampolineBB);
     
     // The always true condition. End of the first block
     // For now, the condition is (x * (x + 1) % 2 == 0)
     // always-true
-    // Value *X = ConstantInt::get(Int8Ty, rand());
     FunctionType *RandomFuncTy = FunctionType::get(Int8Ty, {Int8Ty}, false);
     Function *RandomFunc = cast<Function>(MM->getOrInsertFunction("get_random", RandomFuncTy).getCallee());
     Value *Ctrl = FusionFunction->getArg(0);
     CallInst *X = CallInst::Create(RandomFunc, {Ctrl}, "", from);
-    
-    // Value *op = BinaryOperator::Create(Instruction::Add, X,
-    //             (Value*)ConstantInt::get(Int8Ty, 1), "", from);
-
-    // Value *op1 = BinaryOperator::Create(Instruction::Mul, X, op, "", from);
-    
-    // op = BinaryOperator::Create(Instruction::URem, op1, 
-    //                             (Value*)ConstantInt::get(Int8Ty, 2), "", from);
 
     Twine *var4 = new Twine("condition");
     ICmpInst *condition = nullptr;
@@ -1604,18 +1300,9 @@ void Fus::insertOpaquePredict(BasicBlock *from, BasicBlock * to, bool IsFirst) {
     // Jump to the original basic block if the condition is true or
     // to the toBB if false.
     BranchInst::Create(originalBB, TrampolineBB, (Value *)condition, from);
-    
-    // adjust phis of the toBB
-    // for (auto &PI : to->phis()) {
-    //     // // errs() << "toBB->phis\n";
-    //     // PI.dump();
-    //     Type *type = PI.getType();
-    //     PI.addIncoming(Constant::getNullValue(PI.getType()), from);
-    // }
 }
 
 void Fus::replaceAliasUsers(Function *Old) {
-    // // errs() << "replaceAliasUsers\n";
     // check if Old's users contain GlobalAlias, if true, replace it with old and delete it.
     SmallVector<GlobalAlias *, 4> GlobalAliasToKill;
     for (auto user : Old->users()) {
@@ -1638,10 +1325,7 @@ void Fus::replaceAliasUsers(Function *Old) {
         Constant *aliasee = GA->getAliasee();
         if (aliasee) {
             if(BitCastOperator * BO = dyn_cast<BitCastOperator>(aliasee)) {
-                // // errs() << "Bitcast alias\n";
-                // GA->dump();
                 if(BO->getOperand(0) == Old) {
-                    // errs() << "indirect alisee is old func\n";
                     GA->replaceAllUsesWith(aliasee);
                     GlobalAliasToKill.push_back(GA);
                 }
@@ -1656,17 +1340,12 @@ void Fus::replaceAliasUsers(Function *Old) {
 
 // Construct arguments for FusionFuction.
 void Fus::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
-    // // errs() << "replaceDirectCallers\n";
     bool oldFuncRetVoid = Old->getReturnType()->isVoidTy();
     std::vector<CallBase *> CallUsers;
     getCallInstBySearch(Old, CallUsers);
     for (uint i = 0; i < CallUsers.size(); i++) {
         CallSite CS(CallUsers.at(i));
         Instruction *I = CS.getInstruction();
-        // // errs() << "user " << i << "\n";
-        // I->dump();
-        // Function *UserFunction = I->getParent()->getParent();
-        // UserFunction->dump();
         // arrange new arg list
         SmallVector<Value*, 4> IntArgs, FloatArgs, F1VectorArgs, F2VectorArgs, VectorArgs;
         // 1. old args
@@ -1676,13 +1355,9 @@ void Fus::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
         Value *BitCasti;
         for (argIdx = 0; argIdx < CS.arg_size(); argIdx++) {
             Argi = CS.getArgument(argIdx);
-            // // errs() << "ArgiType: ";
             ArgiType = Argi->getType();
-            // ArgiType->dump();
-            // Argi->dump();
 
             if (ArgiType->isFloatingPointTy()) {
-                // // errs() << "1\n";
                 if (ArgiType != FloatParamTypes[floatIndex]) {
                     Instruction::CastOps CastOp = CastInst::getCastOpcode(Argi,
                                                                     false, FloatParamTypes[floatIndex], false);
@@ -1703,23 +1378,7 @@ void Fus::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
                     vectorIndex2++;
                 }
             } else {
-                // // errs() << "2\n";
                 if (ArgiType != IntParamTypes[intIndex]) {
-                    // // errs() << "4\n";
-                    // add a bit cast to argi
-                    // // errs() << "adding a cast\n";
-                    // // errs() << "source type: ";
-                    // ArgiType->dump();
-                    // // errs() << "dest type: ";
-                    // IntParamTypes[intIndex]->dump();
-                    // note: should we consider the sign flag?
-                    // Since the fusion's param is merged(larger or equal),
-                    // we may need an s/z ext, we use sext for now.
-                    // BitCasti = CastInst::CreateIntegerCast(Argi, IntParamTypes[intIndex], true, "", I);
-                    if (IntParamTypes[intIndex]->isVectorTy()) {
-                        // errs() << "4found vector type:\n";
-                        // IntParamTypes[intIndex]->dump();
-                    }
                     Instruction::CastOps CastOp = CastInst::getCastOpcode(Argi,
                                                                     false, IntParamTypes[intIndex], false);
                     BitCasti = CastInst::Create(CastOp, Argi, IntParamTypes[intIndex], "", I);
@@ -1730,12 +1389,10 @@ void Fus::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
                 intIndex++;
             }
         }
-        // // errs() << "5\n";
         // 2.null values
         for (; intIndex < IntParamTypes.size(); intIndex++) {
             IntArgs.push_back(Constant::getNullValue(IntParamTypes[intIndex]));
         }
-        // // errs() << "6\n";
         for (; floatIndex < FloatParamTypes.size(); floatIndex++) {
             FloatArgs.push_back(Constant::getNullValue(FloatParamTypes[floatIndex]));
         }
@@ -1757,42 +1414,20 @@ void Fus::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
         NewArgs.append(IntArgs.begin(), IntArgs.end());
         NewArgs.append(FloatArgs.begin(), FloatArgs.end());
         NewArgs.append(VectorArgs.begin(), VectorArgs.end());
-        // // errs() << "VectorArgs size: " << VectorArgs.size() << "\n";
 
         bool noUse = oldFuncRetVoid || I->user_empty();
-        // outs() << "arglist type: \n";
-        // for (uint i = 0; i < NewArgs.size(); i++) {
-        //     NewArgs[i]->getType()->dump();
-        // }
-        // outs() << "New->getType()->dump(): ";
-        // New->getType()->dump();
         ArrayRef<Value *> NewArgsArr(NewArgs);
         // Whether the origin callbase is a callinst or an invokeinst,
         // we should replace it with corresponding instruction.
         Type *OldReturnType = Old->getReturnType();
         if (CallInst *CI = dyn_cast<CallInst>(I)) {
-            // // errs() << "Direct callsite: \n";
-            // New->dump();
-            // // errs() << "NewArgs: \n";
-            // for (auto na : NewArgsArr) {
-            //     na->dump();
-            // }
-            // // errs() << "NewArgs end\n";
             CallInst *NewCallInst = CallInst::Create(New, NewArgsArr, "", I);
             NewCallInst->setCallingConv(New->getCallingConv());
-            // if (CI->isTailCall()) {
-            //     NewCallInst->setTailCall(true);
-            // }
             if (!noUse) {
                 if (I->getType() != NewCallInst->getType()) {
                     if (OldReturnType->isVectorTy() || OldReturnType->isAggregateType()) {
                         CastInst * ReturnCastInst = CastInst::CreateBitOrPointerCast(NewCallInst, OldReturnType->getPointerTo(), "", I);
                         LoadInst *Pointer = new LoadInst(ReturnCastInst, "", I);
-                        // Pointer->dump();
-                        // Instruction::CastOps CastOp = CastInst::getCastOpcode(Pointer,
-                        //                                         false, Old->getReturnType(), false);
-                        // Value *NewRetValue = CastInst::Create(CastOp, Pointer, Old->getReturnType(), "", CI);
-                        // NewRetValue->dump();
                         I->replaceAllUsesWith(Pointer);
                     } else {
                         Instruction::CastOps CastOp = CastInst::getCastOpcode(NewCallInst,
@@ -1812,76 +1447,25 @@ void Fus::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
             NewInvoke->setCallingConv(New->getCallingConv());
             if (!noUse) {
                 if (I->getType() != NewInvoke->getType()) {
-                    // // errs() << "new case\n";
-                    // II->getParent()->getParent()->dump();
                      // We need insert a new normal dest bb for return value bitcast
                     BasicBlock *ReturnBB = BasicBlock::Create(*C, "invoke.ret.trampoline.normal", II->getParent()->getParent(), NormalDest);
                     NewInvoke->setNormalDest(ReturnBB);
                     BranchInst::Create(NormalDest, ReturnBB);
                     Instruction *InsertPoint = ReturnBB->getFirstNonPHI();
-                    // Value * PointerBitCastAlias;
                     if (OldReturnType->isVectorTy() || OldReturnType->isAggregateType()) {
                         CastInst * ReturnCastInst = CastInst::CreateBitOrPointerCast(NewInvoke, OldReturnType->getPointerTo(), "", InsertPoint);
                         LoadInst *Pointer = new LoadInst(ReturnCastInst, "", InsertPoint);
                         I->replaceAllUsesWith(Pointer);
-                        // PointerBitCastAlias = Pointer;
                     } else {
                         Instruction::CastOps CastOp = CastInst::getCastOpcode(NewInvoke,
                                                                         false, I->getType(), false);
                         Value *BitCast = CastInst::Create(CastOp, NewInvoke, I->getType(), "", InsertPoint);
                         I->replaceAllUsesWith(BitCast);
-                        // PointerBitCastAlias = BitCast;
                     }
                     // For all phis in the normal dest, we should change the incoming block to trampoline.
-                    // PointerBitCastAlias->dump();
                     for (auto &PI : NormalDest->phis()) {
                             PI.replaceIncomingBlockWith(II->getParent(), ReturnBB);
                     }
-                    // bool UsingRet = false;
-                    // for (auto &PI : NormalDest->phis()) {
-                    //     // errs() << "NormalDest->phis\n";
-                    //     PI.dump();
-                    //     unsigned Op = 0;
-                    //     for (Value *IV : PI.incoming_values()) {
-                    //         if (IV == PointerBitCastAlias) {
-                    //             // errs() << "This normal phi is using return value, replace the incoming block.\n";
-                    //             // this PHI uses return value, we replace the incoming block to trampoline
-                    //             // PI.setIncomingBlock(Op, ReturnBB);
-                    //             UsingRet = true;
-                    //         }
-                    //         Op++;
-                    //     }
-                    //     // PI.dump();
-                    //     // PI.replaceIncomingBlockWith(II->getParent(), ReturnBB);
-                    // }
-                    // if (UsingRet) {
-                    //      for (auto &PI : NormalDest->phis()) {
-                    //         PI.replaceIncomingBlockWith(II->getParent(), ReturnBB);
-                    //     }
-                    // }
-                    // UsingRet = false;
-                    // for (auto &PI : UnwindDest->phis()) {
-                    //     // errs() << "UnwindDest->phis\n";
-                    //     PI.dump();
-                    //     unsigned Op = 0;
-                    //     for (Value *IV : PI.incoming_values()) {
-                    //         if (IV == PointerBitCastAlias) {
-                    //             // errs() << "This unwind phi is using return value, change to null.\n";
-                    //             PI.replaceUsesOfWith(PointerBitCastAlias, Constant::getNullValue(PointerBitCastAlias->getType()));
-                    //             // PI.setIncomingBlock(Op, ReturnBB);
-                    //         }
-                    //         Op++;
-                    //     }
-                    //     PI.dump();
-                    //     // PI.addIncoming(PI.getIncomingValueForBlock(II->getParent()), ReturnBB);
-                    // }
-                    // if (UsingRet) {
-                    //     for (auto &PI : UnwindDest->phis()) {
-                    //         PI.replaceIncomingBlockWith(II->getParent(), ReturnBB);
-                    //     }
-                    // }
-                    // // errs() << "after handle\n";
-                    // II->getParent()->getParent()->dump();
                 } else {
                     I->replaceAllUsesWith(NewInvoke);
                 }
@@ -1897,24 +1481,13 @@ void Fus::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
         }
         //
         I->eraseFromParent();
-        //I->dropAllReferences();
-        // // errs() << "trying to destory old callee\n";
-        // OldCallee->dump();
         if (OldCallee->use_empty() && !isa<Function>(OldCallee)) {
-            // // errs() << "OldCallee->use_empty()\n";
             if (User * OldCalleeAsUser = dyn_cast<User>(OldCallee)) {
-                // // errs() << "It's a user\n";
                 OldCalleeAsUser->dropAllReferences();
-                // OldCalleeAsUser->deleteValue();
             } else {
-                // // errs() << "Normal value\n";
                 OldCallee->deleteValue();
             }
-        } else {
-            // // errs() << "someone still using old callee\n";
-            // OldCallee->dump();
         }
-        // UserFunction->dump();
     }
 }
 
@@ -1929,7 +1502,6 @@ Value *Fus::getExactValue(Value * value) {
 }
 
 void Fus::getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers) {
-    // // errs() << "getCallInstBySearch" << Old->getName() << "\n";
     for (auto &F : *MM) {
         for (auto &BB : F) {
             for (auto &Inst : BB) {
@@ -1950,7 +1522,6 @@ void Fus::getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers)
                             }
                         }
                     } else if (isa<GlobalAlias>(Callee)) {
-                        // // errs() << "called alias\n";
                     }
                 }
             }
@@ -1987,7 +1558,6 @@ void Fus::extractPtrAndCtrlBitAtICall(Module &M) {
     }
         
     unsigned IndirectCallNum = IndirectCalls.size();
-    // errs() << "found " << IndirectCallNum << " indirect calls\n";
     if (IndirectCallNum)
     {
         LLVMContext &C = M.getContext();
@@ -2050,8 +1620,6 @@ void Fus::extractPtrAndCtrlBitAtICall(Module &M) {
             for (argIdx = 0; argIdx < CB->arg_size(); argIdx++) {
                 Argi = CB->getArgOperand(argIdx);
                 ArgiType = Argi->getType();
-                // outs() << "ArgiType:\n";
-                // ArgiType->dump();
                 if (ArgiType->isFloatingPointTy()) {
                     FloatArgs.push_back(Argi);
                     FloatArgTypes.push_back(ArgiType);
@@ -2088,7 +1656,6 @@ void Fus::extractPtrAndCtrlBitAtICall(Module &M) {
                     phiForCall->addIncoming(ICall, NewCallBB);
                 }
             } else if (InvokeInst *II = dyn_cast<InvokeInst>(CB)) {
-                // // errs() << "Invoke inst\n";
                 BasicBlock *NormalDest = II->getNormalDest();
                 BasicBlock *UnwindDest = II->getUnwindDest();
                 InvokeInst *NewII = InvokeInst::Create(ICalleeFunction, NormalDest, UnwindDest, NewArgsArr, "", insPt);

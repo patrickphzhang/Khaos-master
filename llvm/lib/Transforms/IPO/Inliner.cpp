@@ -279,11 +279,6 @@ static InlineResult InlineCallIfPossible(
   
   Function *Callee = CS.getCalledFunction();
   Function *Caller = CS.getCaller();
-  // if (BeginDebug) {
-  //   errs() << "InlineCallIfPossible, caller: " << Caller->getName() << " callee: " << Callee->getName() << "\n";
-  //   CS.getInstruction()->dump();
-
-  // }
   AAResults &AAR = AARGetter(*Callee);
 
   // Try to inline the function.  Get the list of static allocas that were

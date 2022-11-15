@@ -43,16 +43,12 @@ struct BogusControlFlow : public ModulePass {
 char BogusControlFlow::ID = 0;
 
 bool BogusControlFlow::runOnModule(Module &M) {
-  //outs() << "In BogusControlFlow!\n";
-  
   LLVM_DEBUG(outs() << "BogusControlFlow debug!\n");
   bool flag = 0;
   for (auto &F : M) {
     bool needProtect = inConfigOrRandom(KhaosName, M, F, ObfRatio);
     if (needProtect) {
       LLVM_DEBUG(outs() << "func checked: " << F.getName() << "\n");
-
-      // F.viewCFG();
       bogus(F);
 
       flag = 1;
@@ -63,7 +59,6 @@ bool BogusControlFlow::runOnModule(Module &M) {
 
   if (flag) {
     doF(M);
-    // M.getFunction("main")->viewCFG();
   }
 
   return flag;
@@ -81,14 +76,6 @@ void BogusControlFlow::bogus(Function &F) {
 
     if (BB->getTerminator()->isExceptionalTerminator() || BB->isEHPad()||BB==basicBlocks.front())
       continue;
-
-    // for (auto &ins : *basicBlock)
-    //   if (ins.getOpcode() == Instruction::Invoke) { // ins.isEHPad() ||
-    //   ins.isExceptionalTerminator()) {
-    //     HasInvoke = true;
-    //     break;
-    //   }
-    // if (!HasInvoke)
     addBogusFlow(BB, F);
   }
 }
@@ -355,82 +342,6 @@ BasicBlock *BogusControlFlow::createAlteredBasicBlock(BasicBlock *basicBlock,
   return alteredBB;
 }
 
-/*void BogusControlFlow::doF(Module &M) {
-
-  //  The global values
-  Twine *varX = new Twine("x");
-  Twine *varY = new Twine("y");
-  Value *x1 = ConstantInt::get(Type::getInt32Ty(M.getContext()), 0, false);
-  Value *y1 = ConstantInt::get(Type::getInt32Ty(M.getContext()), 0, false);
-
-  GlobalVariable *x =
-      new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false,
-                         GlobalValue::CommonLinkage, (Constant *)x1, *varX);
-  GlobalVariable *y =
-      new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false,
-                         GlobalValue::CommonLinkage, (Constant *)y1, *varY);
-
-  std::vector<Instruction *> toEdit, toDelete;
-  BinaryOperator *op, *op1 = NULL;
-  LoadInst *opX, *opY;
-  ICmpInst *condition, *condition2;
-  // Looking for the conditions and branches to transform
-  for (Module::iterator mi = M.begin(), me = M.end(); mi != me; ++mi) {
-    for (Function::iterator fi = mi->begin(), fe = mi->end(); fi != fe; ++fi) {
-      // fi->setName("");
-      Instruction *tbb = fi->getTerminator();
-      if (tbb->getOpcode() == Instruction::Br) {
-        BranchInst *br = (BranchInst *)(tbb);
-        if (br->isConditional()) {
-          FCmpInst *cond = (FCmpInst *)br->getCondition();
-          unsigned opcode = cond->getOpcode();
-          if (opcode == Instruction::FCmp) {
-            if (cond->getPredicate() == FCmpInst::FCMP_TRUE) {
-              DEBUG_WITH_TYPE("gen",
-                              errs() << "bcf: an always true predicate !\n");
-              toDelete.push_back(cond); // The condition
-              toEdit.push_back(tbb);    // The branch using the condition
-            }
-          }
-        }
-      }
-    }
-  }
-  // Replacing all the branches we found
-  for (auto i : toEdit) {
-    // if y < 10 || x*(x+1) % 2 == 0
-    opX = new LoadInst(cast<Value>(x), "", i);
-    opY = new LoadInst(cast<Value>(y), "", i);
-
-    op = BinaryOperator::Create(
-        Instruction::Sub, cast<Value>(opX),
-        ConstantInt::get(Type::getInt32Ty(M.getContext()), 1, false), "", i);
-    op1 = BinaryOperator::Create(Instruction::Mul, cast<Value>(opX), op, "", i);
-    op = BinaryOperator::Create(
-        Instruction::URem, op1,
-        ConstantInt::get(Type::getInt32Ty(M.getContext()), 2, false), "", i);
-    condition = new ICmpInst(
-        i, ICmpInst::ICMP_EQ, op,
-        ConstantInt::get(Type::getInt32Ty(M.getContext()), 0, false));
-    condition2 = new ICmpInst(
-        i, ICmpInst::ICMP_SLT, opY,
-        ConstantInt::get(Type::getInt32Ty(M.getContext()), 10, false));
-    op1 = BinaryOperator::Create(Instruction::Or, cast<Value>(condition),
-                                 cast<Value>(condition2), "", i);
-
-    BranchInst::Create(cast<BranchInst>(i)->getSuccessor(0),
-                       cast<BranchInst>(i)->getSuccessor(1), (Value *)op1,
-                       cast<BranchInst>(i)->getParent());
-    i->eraseFromParent(); // erase the branch
-  }
-
-  // Erase all the associated conditions we found
-  for (auto i : toDelete) {
-    i->eraseFromParent();
-  }
-  return;
-}
-*/
 bool BogusControlFlow::doF(Module &M){
       // In this part we extract all always-true predicate and replace them with opaque predicate:
       // For this, we declare two global values: x and y, and replace the FCMP_TRUE predicate with
@@ -461,7 +372,6 @@ bool BogusControlFlow::doF(Module &M){
       // Looking for the conditions and branches to transform
       for(Module::iterator mi = M.begin(), me = M.end(); mi != me; ++mi){
         for(Function::iterator fi = mi->begin(), fe = mi->end(); fi != fe; ++fi){
-          //fi->setName("");
           Instruction *tbb = fi->getTerminator();
           if(tbb->getOpcode() == Instruction::Br){
             BranchInst * br = (BranchInst *)(tbb);
@@ -478,11 +388,6 @@ bool BogusControlFlow::doF(Module &M){
               }
             }
           }
-          /*
-          for (BasicBlock::iterator bi = fi->begin(), be = fi->end() ; bi != be; ++bi){
-            bi->setName(""); // setting the basic blocks' names
-          }
-          */
         }
       }
       // Replacing all the branches we found

@@ -38,20 +38,7 @@ namespace {
 char FisPositionPass::ID = 0;
 
 bool FisPositionPass::runOnModule(Module &M) {
-
 	LLVM_DEBUG(outs() << "FisPosition debug!\n");
-
-    // for (auto &F : M) {
-
-    //     bool needProtect = inConfigOrRandom(KhaosName, M, F, ObfRatio);
-    //     if (needProtect) {
-    //         LLVM_DEBUG(outs() << "func checked: " << F.getName() << "\n");
-    //     } else {
-    //         LLVM_DEBUG(outs() << "func nochecked: " << F.getName() << "\n");
-    //     }
-
-    // }
-
     shuffle(M, NumPerGroup);
 
 	return true;

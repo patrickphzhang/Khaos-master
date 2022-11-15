@@ -337,27 +337,13 @@ private:
 } // end anonymous namespace
 
 Value *Mapper::mapValue(const Value *V) {
-  // if (BeginDebug) {
-  //   errs() << "mapValue\n";
-  //   V->dump();
-  // }
     
   ValueToValueMapTy::iterator I = getVM().find(V);
   // If the value already exists in the map, use it.
   if (I != getVM().end()) {
     assert(I->second && "Unexpected null mapping");
-    // if (BeginDebug) {
-    //   errs() << "found in VMap\n";
-    //   // I->second->dump();
-    //   // if (isa<BasicBlock>(V)) {
-    //   //   errs() << "need to know why bb is mapped in VMap\n";
-    //   // }
-    // }
     return I->second;
   }
-  // if (BeginDebug && isa<BasicBlock>(V)) {
-  //     errs() << "1\n";
-  // }
   // If we have a materializer and it can materialize a value, use that.
   if (auto *Materializer = getMaterializer()) {
     if (Value *NewV = Materializer->materialize(const_cast<Value *>(V))) {
@@ -365,9 +351,6 @@ Value *Mapper::mapValue(const Value *V) {
       return NewV;
     }
   }
-  // if (BeginDebug && isa<BasicBlock>(V)) {
-  //     errs() << "2\n";
-  // }
   // Global values do not need to be seeded into the VM if they
   // are using the identity mapping.
   if (isa<GlobalValue>(V)) {
@@ -420,17 +403,11 @@ Value *Mapper::mapValue(const Value *V) {
       return getVM()[V] = const_cast<Value *>(V);
     return getVM()[V] = MetadataAsValue::get(V->getContext(), MappedMD);
   }
-  // if (BeginDebug && isa<BasicBlock>(V)) {
-  //     errs() << "3\n";
-  // }
   // Okay, this either must be a constant (which may or may not be mappable) or
   // is something that is not in the mapping table.
   Constant *C = const_cast<Constant*>(dyn_cast<Constant>(V));
   if (!C)
     return nullptr;
-  // if (BeginDebug && isa<BasicBlock>(V)) {
-  //     errs() << "4\n";
-  // }
   if (BlockAddress *BA = dyn_cast<BlockAddress>(C))
     return mapBlockAddress(*BA);
 
@@ -452,9 +429,6 @@ Value *Mapper::mapValue(const Value *V) {
     if (!Mapped)
       return nullptr;
     if (Mapped != Op) {
-      if (BeginDebug) {
-        errs() << "Mapped != Op\n";
-      }
       break;
     }
       
@@ -892,20 +866,8 @@ void Mapper::flush() {
 
 void Mapper::remapInstruction(Instruction *I) {
   // Remap operands.
-  // if (BeginDebug) {
-  //   if (isa<InvokeInst>(I)) {
-  //     errs() << "remap Instruction\n";
-  //     I->dump();
-  //   }
-  // }
   for (Use &Op : I->operands()) {
     Value *V = mapValue(Op);
-    // if (BeginDebug) {
-    //   if (V) 
-    //     errs() << "remapped something\n";
-    //   else
-    //     errs() << "remapped nothing\n";
-    // }
     // If we aren't ignoring missing entries, assert that something happened.
     if (V) 
       Op = V;

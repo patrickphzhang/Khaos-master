@@ -3576,8 +3576,6 @@ void InstructionCombiningPass::getAnalysisUsage(AnalysisUsage &AU) const {
 bool InstructionCombiningPass::runOnFunction(Function &F) {
   if (skipFunction(F))
     return false;
-  // if (F.getName() == "_ZNK11xercesc_2_519RefHash2KeysTableOfINS_18IdentityConstraintEE14findBucketElemEPKviRj_ZN11xercesc_2_514TraverseSchema26traverseIdentityConstraintEPNS_18IdentityConstraintEPKNS_10DOMElementEFusion")
-  //   BeginDebug = true;
   // Required analyses.
   auto AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
   auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);

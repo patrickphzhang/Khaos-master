@@ -38,8 +38,6 @@ bool HarmnessAnalysis::isTypeHarmless(Type *type) {
 
 
 bool HarmnessAnalysis::isValueFromArg(Value * value) {
-    // errs() << "identifying\n";
-    // value->dump();
     if (isa<Constant>(value)) return false;
     else if (ArgsRelated.count(value) > 0) return true;
     else if (User *user = dyn_cast<User>(value)){
@@ -49,7 +47,6 @@ bool HarmnessAnalysis::isValueFromArg(Value * value) {
             Value *Opi = user->getOperand(i);
             if (AnalysisingValues.count(Opi)) {
                 // this would happen when there is a circle
-                // errs() << "this value is being analysised\n";
                 continue;
             }
             if (ArgsIrrelevant.count(Opi))
@@ -58,8 +55,6 @@ bool HarmnessAnalysis::isValueFromArg(Value * value) {
                 return true;
             }else if (isValueFromArg(Opi)) {
                 valueFromArg = true;
-                // errs() << "this value is from arg\n";
-                // Opi->dump();
                 ArgsRelated.insert(Opi);
                 ArgsRelated.insert(value);
                 break;
@@ -70,7 +65,6 @@ bool HarmnessAnalysis::isValueFromArg(Value * value) {
         AnalysisingValues.remove(value);
         return valueFromArg;
     } else {
-        // errs() << "Unknow type\n";
         return false;
     }
 }
@@ -89,13 +83,9 @@ bool HarmnessAnalysis::isValueHarmless(Value * value) {
         } else if (isa<ConstantInt>(value)
                     || isa<ConstantFP>(value)
                     || isa<ConstantPointerNull>(value)) {
-            // errs() << "constant\n";
             // constant is harmless
             Harmless = true;
         } else {
-            // errs() << "unhandled type\n";
-            // value->dump();
-            // Opi->getType()->dump();
             Harmless = false;
         }
     }
@@ -104,8 +94,7 @@ bool HarmnessAnalysis::isValueHarmless(Value * value) {
 
 bool HarmnessAnalysis::runOnModule(Module &M) {
     HarmnessMap.clear();
-    errs() << "HarmnessAnalysis\n";
-    // M.dump();
+    // errs() << "HarmnessAnalysis\n";
     // init harmless map
     for (auto &F : M) {
         // if the arg is scalar type, it is harmless
@@ -121,11 +110,9 @@ bool HarmnessAnalysis::runOnModule(Module &M) {
         }
         for (auto &BB : F) {
             for (auto &Inst : BB) {
-                // allocas / branches / phis are harmless
+                // allocas / branches are harmless
                 if (isa<AllocaInst>(&Inst)
-                    || isa<BranchInst>(&Inst)
-                    // || isa<PHINode>(&Inst)
-                    ) 
+                    || isa<BranchInst>(&Inst))
                     HarmnessMap[&Inst] = 0;
                 // ud2 are harmful
                 else if (isa<UnreachableInst>(&Inst))
@@ -133,7 +120,7 @@ bool HarmnessAnalysis::runOnModule(Module &M) {
             }
         }
     }
-    errs() << "total " << HarmnessMap.size() << " found\n";
+    // errs() << "total " << HarmnessMap.size() << " found\n";
     // 0 harmless
     // 123... tbd
     bool StateChanged = true;
@@ -142,23 +129,13 @@ bool HarmnessAnalysis::runOnModule(Module &M) {
         LoopCount++;
         StateChanged = false;
         for (auto &F : M) {
-            // F.dump();
             if (F.isDeclaration() || F.isIntrinsic()) continue;
-            // InitSparePicture and InitSubseqChar
-            // merging UMVPelY_14 and WriteRTPNALU
-            // merging print_operand_address and output_387_binary_op
-            // if (F.getName() != "print_operand_address" 
-            //     && F.getName() != "output_387_binary_op") {
-            //     continue;
-            // }
             for (auto &BB : F) {
                 for (auto &Inst : BB) {
                     if (HarmnessMap.count(&Inst)) {
                         continue;
                     }
                     bool InstHarmless = true;
-                    // errs() << "identifying:\n";
-                    // Inst.dump();
                     if (CastInst *CI = dyn_cast<CastInst>(&Inst)) {
                         // we only care cast's src
                         InstHarmless = isValueHarmless(Inst.getOperand(0));
@@ -167,7 +144,6 @@ bool HarmnessAnalysis::runOnModule(Module &M) {
                         }
                     } else if (PHINode *phi = dyn_cast<PHINode>(&Inst)) {
                         // if all src is harmless, then the phi is harmless
-                        // errs() << "it's a phi\n";
                         for (auto &src : phi->incoming_values()) {
                             Value *ivalue = &*src;
                             if (!isValueHarmless(ivalue)) {
@@ -179,7 +155,6 @@ bool HarmnessAnalysis::runOnModule(Module &M) {
                         }
                     } else if (CallBase *CB = dyn_cast<CallBase>(&Inst)) {
                         // callee is an extra operand
-                        // errs() << "Call\n";
                         Function * Callee = CB->getCalledFunction();
                         if (Callee) {
                             if (isFunctionHarmless(Callee) && !isValueFromArg(CB)) {
@@ -204,7 +179,6 @@ bool HarmnessAnalysis::runOnModule(Module &M) {
                                 if (LoadInst *LI = dyn_cast<LoadInst>(&Inst)) {
                                     // loading scalar variable is safe
                                     Type *LdType = LI->getType();
-                                    // LdType->dump();
                                     if (!isTypeHarmless(LdType)) {
                                         InstHarmless = false;
                                     }
@@ -221,8 +195,6 @@ bool HarmnessAnalysis::runOnModule(Module &M) {
                         }
                     }
                     if (InstHarmless) {
-                        // errs() << "found a harmless inst\n";
-                        // Inst.dump();
                         HarmnessMap[&Inst] = 0;
                         StateChanged = true;
                     }  
@@ -259,11 +231,6 @@ bool HarmnessAnalysis::runOnModule(Module &M) {
 
     for (auto &F : M) {
         uint HarmlessBBCount = 0, HarmfulBBCount = 0;
-        // if (F.getName() == "_ZN6soplex6SoPlex12getLeaveValsEiRNS_8SPxBasis4Desc6StatusERNS_5SPxIdERdS7_Ri" 
-        //     || F.getName() == "_ZN6soplex6SoPlex11rejectLeaveEiNS_5SPxIdENS_8SPxBasis4Desc6StatusEPKNS_7SVectorE") {
-        //     F.dump();
-        //     BeginDebug = true;
-        // }
         for (auto &BB : F) {
             if (BB.size() <= 1) {
                 // empty or trampoline BB is not considered
@@ -279,31 +246,22 @@ bool HarmnessAnalysis::runOnModule(Module &M) {
             if (BBHarmless) {
                 HarmnessMap[&BB] = 0;
                 HarmlessBBCount++;
-                // if (BeginDebug) {
-                    // errs() << "harmless BB\n";
-                //     BB.dump();
-                // }
             } else {
                 HarmfulBBCount++;
             }
         }
-        // errs() << "STATISTICS: function: " << F.getName() << " has " << HarmlessBBCount << "HarmlessBB\n";
         if (HarmlessBBCount) {
             if (HarmfulBBCount) {
                 HarmnessMap[&F] = 1;
-                // errs() << "STATISTICS: function: " << F.getName() << " has " <<  "\n";
             } else {
                 HarmnessMap[&F] = 0;
-                // errs() << "STATISTICS: found a harmless function: " << F.getName() << "\n";
             }
         }
-        BeginDebug = false;
     }
     return false;
 }
 
 void HarmnessAnalysis::getAnalysisUsage(AnalysisUsage &Info) const {
-    // errs() << "HarmnessAnalysis::getAnalysisUsage\n";
     Info.setPreservesAll();
 }
 
