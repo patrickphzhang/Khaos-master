@@ -64,12 +64,10 @@ namespace llvm {
     extern DenseMap<Function*, SetVector<Function*>*> LoopCalleeMap;
     extern std::set<Function*> FunctionsWithLoop;
 
-    //Global variables for IntraShuffle
     class ModulePass;
     extern ModulePass *createParseJsonPass();
     extern ModulePass *createFusPass();
     extern Pass *createFusPreparePass();
-    extern Pass *createSplitBasicBlock(bool flag);
     extern Pass *createDeepFusionPreparePass();
     extern ModulePass *createFisPass(); 
     extern ModulePass *createFisPositionPass();
