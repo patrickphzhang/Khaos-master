@@ -168,21 +168,6 @@ bool toObfuscate(bool flag, Function *f, std::string attribute) {
 
   // If fla flag is set
   if (flag == true) {
-    /* Check if the number of applications is correct
-    if (!((Percentage > 0) && (Percentage <= 100))) {
-      LLVMContext &ctx = llvm::getGlobalContext();
-      ctx.emitError(Twine("Flattening application function\
-              percentage -perFLA=x must be 0 < x <= 100"));
-    }
-    // Check name
-    else if (func.size() != 0 && func.find(f->getName()) != std::string::npos) {
-      return true;
-    }
-
-    if ((((int)llvm::cryptoutils->get_range(100))) < Percentage) {
-      return true;
-    }
-    */
     return true;
   }
 
