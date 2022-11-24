@@ -30,6 +30,8 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/ProfileSummary.h"
 #include "llvm/IR/SymbolTableListTraits.h"
+// Khaos
+#include "llvm/IR/Instructions.h"
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/CodeGen.h"
 #include <cstddef>
@@ -809,6 +811,10 @@ public:
   /// Dump the module to stderr (for debugging).
   void dump() const;
 
+  // Khaos
+  // patch indirect calls for fusion
+  void patchIndirectCalls();
+
   /// This function causes all the subinstructions to "let go" of all references
   /// that they are maintaining.  This allows one to 'delete' a whole class at
   /// a time, even though there may be circular references... first all
@@ -896,6 +902,7 @@ public:
 
   /// Take ownership of the given memory buffer.
   void setOwnedMemoryBuffer(std::unique_ptr<MemoryBuffer> MB);
+
 };
 
 /// Given "llvm.used" or "llvm.compiler.used" as a global name, collect

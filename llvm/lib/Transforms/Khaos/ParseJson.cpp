@@ -32,9 +32,9 @@ cl::opt<bool> EnableBog("enable-bog", cl::init(false), cl::Hidden,
 		cl::desc("Enable Bogus"));
 cl::opt<bool> EnableFus("enable-fus", cl::init(false), cl::Hidden,
 		cl::desc("Enable Fus"));
-cl::opt<bool> FissionedFunctionOnly("fissioned-function-only", cl::init(false), cl::Hidden,
+cl::opt<bool> FissionedFunctionOnly("sep", cl::init(false), cl::Hidden,
 		cl::desc("Only Fusion Fissioned Functions"));
-cl::opt<bool> OriginFunctionOnly("origin-function-only", cl::init(false), cl::Hidden,
+cl::opt<bool> OriginFunctionOnly("ori", cl::init(false), cl::Hidden,
 		cl::desc("Only Fusion Origin Functions"));
 cl::opt<bool> EnableFis("enable-fis",
 				cl::desc("Enable Fission Pass"),

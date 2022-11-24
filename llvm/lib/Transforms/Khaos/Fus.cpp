@@ -80,6 +80,7 @@ namespace {
         void getFunctionUsed(Instruction *I, SetVector<Function *> &UsedFunctions);
         void extractPtrAndCtrlBitAtICall(Module &M);
         uint getIntArgSize(Function *F);
+        void arrangeArgList(Function *Old, BasicBlock *TrampolineBB, CallSite CS, SmallVector<Value*, 4> &NewArgs, bool IsFirst);
         void insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
                                     ValueToValueMapTy &VMap);
     };
@@ -87,12 +88,8 @@ namespace {
 }
 
 char Fus::ID = 0;
-void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
-                                                ValueToValueMapTy &VMap) {
-    assert(Old->size() == 0 && "What happened? We have already clean the body of Old.");
-    auto &Context = New->getContext();
-    Module *M = New->getParent();
-    BasicBlock *TrampolineBB = BasicBlock::Create(Context, Old->getName() + "_trampoline", Old);
+
+void Fus::arrangeArgList(Function *Old, BasicBlock *TrampolineBB, CallSite CS, SmallVector<Value*, 4> &NewArgs, bool IsFirst) {
     // arrange new arg list
     SmallVector<Value*, 4> IntArgs, FloatArgs, F1VectorArgs, F2VectorArgs, VectorArgs;
     // 1. old args
@@ -100,19 +97,34 @@ void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
     Value* Argi;
     Type* ArgiType;
     Value *BitCasti;
-    for (argIdx = 0; argIdx < Old->arg_size(); argIdx++) {
-        Argi = Old->getArg(argIdx);
+    Instruction *I;
+    unsigned argSize = 0;
+    if (Old)
+        argSize = Old->arg_size();
+    else {
+        argSize = CS.arg_size();
+        I = CS.getInstruction();
+    }
+        
+    for (argIdx = 0; argIdx < argSize; argIdx++) {
+        if (Old)
+            Argi = Old->getArg(argIdx);
+        else
+            Argi = CS.getArgument(argIdx);
+        
         ArgiType = Argi->getType();
         if (ArgiType->isFloatingPointTy()) {
             if (ArgiType != FloatParamTypes[floatIndex]) {
                 // add a bit cast to argi
                 Instruction::CastOps CastOp = CastInst::getCastOpcode(Argi,
                                                                 false, FloatParamTypes[floatIndex], false);
-                BitCasti = CastInst::Create(CastOp, Argi, FloatParamTypes[floatIndex], "", TrampolineBB);
+                if (Old)
+                    BitCasti = CastInst::Create(CastOp, Argi, FloatParamTypes[floatIndex], "", TrampolineBB);
+                else
+                    BitCasti = CastInst::Create(CastOp, Argi, FloatParamTypes[floatIndex], "", I);
                 FloatArgs.push_back(BitCasti);
-            } else {
+            } else
                 FloatArgs.push_back(Argi);
-            }
             floatIndex++;
         } else if (ArgiType->isVectorTy()) {
             if (IsFirst) {
@@ -130,31 +142,28 @@ void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
                 // add a bit cast to argi
                 Instruction::CastOps CastOp = CastInst::getCastOpcode(Argi,
                                                                 false, IntParamTypes[intIndex], false);
-                BitCasti = CastInst::Create(CastOp, Argi, IntParamTypes[intIndex], "", TrampolineBB);
+                if (Old)
+                    BitCasti = CastInst::Create(CastOp, Argi, IntParamTypes[intIndex], "", TrampolineBB);
+                else
+                    BitCasti = CastInst::Create(CastOp, Argi, IntParamTypes[intIndex], "", I);
                 IntArgs.push_back(BitCasti);
-            } else {
+            } else
                 IntArgs.push_back(Argi);
-            }
             intIndex++;
         }
     }
     // 2.null values
-    for (; intIndex < IntParamTypes.size(); intIndex++) {
+    for (; intIndex < IntParamTypes.size(); intIndex++)
         IntArgs.push_back(Constant::getNullValue(IntParamTypes[intIndex]));
-    }
-    for (; floatIndex < FloatParamTypes.size(); floatIndex++) {
+    for (; floatIndex < FloatParamTypes.size(); floatIndex++)
         FloatArgs.push_back(Constant::getNullValue(FloatParamTypes[floatIndex]));
-    }
     VectorArgs.append(F1VectorArgs.begin(), F1VectorArgs.end());
-    for (; vectorIndex1 < F1VectorParamTypes.size(); vectorIndex1++) {
+    for (; vectorIndex1 < F1VectorParamTypes.size(); vectorIndex1++)
         VectorArgs.push_back(Constant::getNullValue(F1VectorParamTypes[vectorIndex1]));
-    }
     VectorArgs.append(F2VectorArgs.begin(), F2VectorArgs.end());
-    for (; vectorIndex2 < F2VectorParamTypes.size(); vectorIndex2++) {
+    for (; vectorIndex2 < F2VectorParamTypes.size(); vectorIndex2++)
         VectorArgs.push_back(Constant::getNullValue(F2VectorParamTypes[vectorIndex2]));
-    }
     // 3. merge arg list
-    SmallVector<Value*, 4> NewArgs;
     // ctrl bit
     if (IsFirst)
         NewArgs.push_back(ConstantInt::get(Type::getInt8Ty(*C), 0));
@@ -163,24 +172,31 @@ void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
     NewArgs.append(IntArgs.begin(), IntArgs.end());
     NewArgs.append(FloatArgs.begin(), FloatArgs.end());
     NewArgs.append(VectorArgs.begin(), VectorArgs.end());
+}
+
+void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
+                                                ValueToValueMapTy &VMap) {
+    assert(Old->size() == 0 && "What happened? We have already clean the body of Old.");
+    auto &Context = New->getContext();
+    Module *M = New->getParent();
+    BasicBlock *TrampolineBB = BasicBlock::Create(Context, Old->getName() + "_trampoline", Old);
+    SmallVector<Value*, 4> NewArgs;
+    CallSite CS;
+    arrangeArgList(Old, TrampolineBB, CS, NewArgs, IsFirst);
     ArrayRef<Value *> NewArgsArr(NewArgs);
-    
     CallInst *NewCallInst = CallInst::Create(New, NewArgsArr, "", TrampolineBB);
     NewCallInst->setCallingConv(New->getCallingConv());
     Type *OldReturnType = Old->getReturnType();
+    Value *retVal = nullptr;
     if (!OldReturnType->isVoidTy()) {
         if (OldReturnType != NewCallInst->getType()) {
             Instruction::CastOps CastOp = CastInst::getCastOpcode(NewCallInst,
                                                             false, OldReturnType, false);
-            Value *BitCast = CastInst::Create(CastOp, NewCallInst, OldReturnType, "", TrampolineBB);
-            ReturnInst::Create(M->getContext(), BitCast, TrampolineBB);
-        } else {
-            ReturnInst::Create(M->getContext(), NewCallInst, TrampolineBB);
-        }
-    } else {
-        // return void
-        ReturnInst::Create(M->getContext(), nullptr, TrampolineBB);
+            retVal = CastInst::Create(CastOp, NewCallInst, OldReturnType, "", TrampolineBB);
+        } else
+            retVal = NewCallInst;
     }
+    ReturnInst::Create(M->getContext(), retVal, TrampolineBB);
 }
 
 bool Fus::runOnModule(Module &M) {
@@ -594,7 +610,8 @@ bool Fus::runOnModule(Module &M) {
         }
     }
     if (!FissionedFunctionOnly) {
-        extractPtrAndCtrlBitAtICall(M);
+        // extractPtrAndCtrlBitAtICall(M);
+        M.patchIndirectCalls();
     }
     
     outs() << "STATISTICS: fusion ended, merged " << MergeCount*2 << " of " << TotalCount << " functions\n";
@@ -886,11 +903,8 @@ void Fus::deepFusionLevel1(ValueToValueMapTy &VMap, Function *from, Function *to
     Value *valueTo = VMap[&*itTo];
     BasicBlock *fromBB = dyn_cast<BasicBlock>(valueFrom);
     BasicBlock *toBB = dyn_cast<BasicBlock>(valueTo);
-    if (fromBB && toBB) {
+    if (fromBB && toBB)
         insertOpaquePredict(fromBB, toBB, IsFirst);
-    } else {
-        // errs() << "Can not find the corresponding bb in fusion function.\n";
-    }
 }
 
 bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
@@ -901,7 +915,7 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
     getHarmlessBasicBlocks(F1, HarmlessBBF1);
     getHarmlessBasicBlocks(F2, HarmlessBBF2);
     
-    if (HarmlessBBF1.size() == 0 || HarmlessBBF1.size() == 0) {
+    if (HarmlessBBF1.size() == 0 || HarmlessBBF2.size() == 0) {
         // errs() << "no harmless basic block found, return\n";
         return true;
     }
@@ -940,7 +954,6 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
             }
         } 
     }
-                
     // 3. preprocess them, spilit phis and jccs, get the mergable part
     BB1 = preprocessToMergable(BB1);
     BB2 = preprocessToMergable(BB2);
@@ -1246,7 +1259,6 @@ void Fus::moveAllocas() {
         I->moveBefore(InsertPoint);
         InsertPoint = I;
     }
-    
 }
 
 void Fus::insertOpaquePredict(BasicBlock *from, BasicBlock * to, bool IsFirst) {
@@ -1347,105 +1359,39 @@ void Fus::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
     for (uint i = 0; i < CallUsers.size(); i++) {
         CallSite CS(CallUsers.at(i));
         Instruction *I = CS.getInstruction();
-        // arrange new arg list
-        SmallVector<Value*, 4> IntArgs, FloatArgs, F1VectorArgs, F2VectorArgs, VectorArgs;
-        // 1. old args
-        unsigned argIdx = 0, floatIndex = 0, intIndex = 0, vectorIndex1 = 0, vectorIndex2 = 0;
-        Value* Argi;
-        Type* ArgiType;
-        Value *BitCasti;
-        for (argIdx = 0; argIdx < CS.arg_size(); argIdx++) {
-            Argi = CS.getArgument(argIdx);
-            ArgiType = Argi->getType();
-
-            if (ArgiType->isFloatingPointTy()) {
-                if (ArgiType != FloatParamTypes[floatIndex]) {
-                    Instruction::CastOps CastOp = CastInst::getCastOpcode(Argi,
-                                                                    false, FloatParamTypes[floatIndex], false);
-                    BitCasti = CastInst::Create(CastOp, Argi, FloatParamTypes[floatIndex], "", I);
-                    FloatArgs.push_back(BitCasti);
-                } else {
-                    FloatArgs.push_back(Argi);
-                }
-                floatIndex++;
-            } else if (ArgiType->isVectorTy()) {
-                if (IsFirst) {
-                    assert(ArgiType == F1VectorParamTypes[vectorIndex1] && "DirectCaller ArgTy is VectorTy but not equals to origin");
-                    F1VectorArgs.push_back(Argi);
-                    vectorIndex1++;
-                } else {
-                    assert(ArgiType == F2VectorParamTypes[vectorIndex2] && "DirectCaller ArgTy is VectorTy but not equals to origin");
-                    F2VectorArgs.push_back(Argi);
-                    vectorIndex2++;
-                }
-            } else {
-                if (ArgiType != IntParamTypes[intIndex]) {
-                    Instruction::CastOps CastOp = CastInst::getCastOpcode(Argi,
-                                                                    false, IntParamTypes[intIndex], false);
-                    BitCasti = CastInst::Create(CastOp, Argi, IntParamTypes[intIndex], "", I);
-                    IntArgs.push_back(BitCasti);
-                } else {
-                    IntArgs.push_back(Argi);
-                }
-                intIndex++;
-            }
-        }
-        // 2.null values
-        for (; intIndex < IntParamTypes.size(); intIndex++) {
-            IntArgs.push_back(Constant::getNullValue(IntParamTypes[intIndex]));
-        }
-        for (; floatIndex < FloatParamTypes.size(); floatIndex++) {
-            FloatArgs.push_back(Constant::getNullValue(FloatParamTypes[floatIndex]));
-        }
-        VectorArgs.append(F1VectorArgs.begin(), F1VectorArgs.end());
-        for (; vectorIndex1 < F1VectorParamTypes.size(); vectorIndex1++) {
-            VectorArgs.push_back(Constant::getNullValue(F1VectorParamTypes[vectorIndex1]));
-        }
-        VectorArgs.append(F2VectorArgs.begin(), F2VectorArgs.end());
-        for (; vectorIndex2 < F2VectorParamTypes.size(); vectorIndex2++) {
-            VectorArgs.push_back(Constant::getNullValue(F2VectorParamTypes[vectorIndex2]));
-        }
-        // 3. merge arg list
+        Function *EmptyOld = nullptr;
+        BasicBlock *EmptyBB = nullptr;
         SmallVector<Value*, 4> NewArgs;
-        // ctrl bit
-        if (IsFirst)
-            NewArgs.push_back(ConstantInt::get(Type::getInt8Ty(*C), 0));
-        else
-            NewArgs.push_back(ConstantInt::get(Type::getInt8Ty(*C), 1));
-        NewArgs.append(IntArgs.begin(), IntArgs.end());
-        NewArgs.append(FloatArgs.begin(), FloatArgs.end());
-        NewArgs.append(VectorArgs.begin(), VectorArgs.end());
-
+        arrangeArgList(EmptyOld, EmptyBB, CS, NewArgs, IsFirst);
         bool noUse = oldFuncRetVoid || I->user_empty();
         ArrayRef<Value *> NewArgsArr(NewArgs);
         // Whether the origin callbase is a callinst or an invokeinst,
         // we should replace it with corresponding instruction.
         Type *OldReturnType = Old->getReturnType();
+        Value * target = nullptr;
         if (CallInst *CI = dyn_cast<CallInst>(I)) {
             CallInst *NewCallInst = CallInst::Create(New, NewArgsArr, "", I);
             NewCallInst->setCallingConv(New->getCallingConv());
+            target = NewCallInst;
             if (!noUse) {
                 if (I->getType() != NewCallInst->getType()) {
                     if (OldReturnType->isVectorTy() || OldReturnType->isAggregateType()) {
                         CastInst * ReturnCastInst = CastInst::CreateBitOrPointerCast(NewCallInst, OldReturnType->getPointerTo(), "", I);
-                        LoadInst *Pointer = new LoadInst(ReturnCastInst, "", I);
-                        I->replaceAllUsesWith(Pointer);
+                        target = new LoadInst(ReturnCastInst, "", I);
                     } else {
                         Instruction::CastOps CastOp = CastInst::getCastOpcode(NewCallInst,
                                                                         false, I->getType(), false);
-                        Value *BitCast = CastInst::Create(CastOp, NewCallInst, I->getType(), "", I);
-                        I->replaceAllUsesWith(BitCast);
+                        target = CastInst::Create(CastOp, NewCallInst, I->getType(), "", I);
                     }
-                } else {
-                    I->replaceAllUsesWith(NewCallInst);
                 }
+                I->replaceAllUsesWith(target);
             }
         } else if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
             BasicBlock *NormalDest = II->getNormalDest();
-            BasicBlock *UnwindDest = II->getUnwindDest();
             InvokeInst *NewInvoke = InvokeInst::Create(New->getFunctionType(), New, NormalDest,
-                                UnwindDest, NewArgsArr, "", I);
+                                II->getUnwindDest(), NewArgsArr, "", I);
             NewInvoke->setCallingConv(New->getCallingConv());
+            target = NewInvoke;
             if (!noUse) {
                 if (I->getType() != NewInvoke->getType()) {
                      // We need insert a new normal dest bb for return value bitcast
@@ -1455,39 +1401,31 @@ void Fus::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
                     Instruction *InsertPoint = ReturnBB->getFirstNonPHI();
                     if (OldReturnType->isVectorTy() || OldReturnType->isAggregateType()) {
                         CastInst * ReturnCastInst = CastInst::CreateBitOrPointerCast(NewInvoke, OldReturnType->getPointerTo(), "", InsertPoint);
-                        LoadInst *Pointer = new LoadInst(ReturnCastInst, "", InsertPoint);
-                        I->replaceAllUsesWith(Pointer);
+                        target = new LoadInst(ReturnCastInst, "", InsertPoint);
                     } else {
                         Instruction::CastOps CastOp = CastInst::getCastOpcode(NewInvoke,
                                                                         false, I->getType(), false);
-                        Value *BitCast = CastInst::Create(CastOp, NewInvoke, I->getType(), "", InsertPoint);
-                        I->replaceAllUsesWith(BitCast);
+                        target = CastInst::Create(CastOp, NewInvoke, I->getType(), "", InsertPoint);
                     }
                     // For all phis in the normal dest, we should change the incoming block to trampoline.
                     for (auto &PI : NormalDest->phis()) {
                             PI.replaceIncomingBlockWith(II->getParent(), ReturnBB);
                     }
-                } else {
-                    I->replaceAllUsesWith(NewInvoke);
                 }
+                I->replaceAllUsesWith(target);
             }
-        } else {
+        } else
             llvm_unreachable("unhandled replace direct call\n");
-        }
         assert(I->getNumUses() == 0 && "Old direct CallInst should not be used any more!");
         Value * OldCallee = I->getOperand(0);
-        // 
-        if (CallBase *CI = dyn_cast<CallBase>(I)) {
+        if (CallBase *CI = dyn_cast<CallBase>(I))
             OldCallee = CI->getCalledValue();
-        }
-        //
         I->eraseFromParent();
         if (OldCallee->use_empty() && !isa<Function>(OldCallee)) {
-            if (User * OldCalleeAsUser = dyn_cast<User>(OldCallee)) {
+            if (User * OldCalleeAsUser = dyn_cast<User>(OldCallee))
                 OldCalleeAsUser->dropAllReferences();
-            } else {
+            else
                 OldCallee->deleteValue();
-            }
         }
     }
 }
@@ -1507,7 +1445,6 @@ void Fus::getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers)
         for (auto &BB : F) {
             for (auto &Inst : BB) {
                 if (CallBase *CB = dyn_cast<CallBase>(&Inst)) {
-                    
                     Value * Callee = CB->getCalledValue();
                     if (isa<Function>(Callee)) {
                         if (Callee == Old) {
@@ -1522,7 +1459,6 @@ void Fus::getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers)
                                 CallUsers.push_back(CB);
                             }
                         }
-                    } else if (isa<GlobalAlias>(Callee)) {
                     }
                 }
             }
