@@ -9,8 +9,6 @@ add_llvm_library( LLVMKhaosMid
   FisPosition.cpp
   KhaosCodeExtractor.cpp
   CryptoUtils.cpp
-  HarmnessAnalysis.cpp
-  DeepFusionPrepare.cpp
   Fis.cpp
 )
 

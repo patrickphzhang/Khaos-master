@@ -831,9 +831,6 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
   // Khaos
   if (EnableFus) {
       PM.add(createFusPreparePass());
-      if (EnableDeepFusion) {
-        PM.add(createDeepFusionPreparePass());
-      }
       PM.add(createFusPass());
       PM.add(createFisPositionPass());
   }

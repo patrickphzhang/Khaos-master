@@ -68,7 +68,6 @@ namespace llvm {
     extern ModulePass *createParseJsonPass();
     extern ModulePass *createFusPass();
     extern Pass *createFusPreparePass();
-    extern Pass *createDeepFusionPreparePass();
     extern ModulePass *createFisPass(); 
     extern ModulePass *createFisPositionPass();
     extern ModulePass *createParseCOFFPass();
@@ -95,7 +94,6 @@ extern cl::opt<int> RatioFis;
 
 // KHAOS
 extern cl::opt<bool> EnableFus;
-extern cl::opt<bool> EnableDeepFusion;
 extern cl::opt<bool> EnableFis;
 extern cl::opt<bool> FissionedFunctionOnly;
 extern cl::opt<bool> OriginFunctionOnly;

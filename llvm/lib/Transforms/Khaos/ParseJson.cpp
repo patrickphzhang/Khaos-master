@@ -22,8 +22,6 @@ cl::opt<int> RatioObfuscation("ratio-obfuscation", cl::init(0), cl::Hidden,
 		cl::desc("Protect ratio for obfuscation"));
 cl::opt<int> RatioFis("ratio-fis", cl::init(0), cl::Hidden,
 		cl::desc("Protect ratio for fission"));
-cl::opt<bool> EnableDeepFusion("enable-deepfusion", cl::init(false), cl::Hidden,
-		cl::desc("Deep fusion level"));
 cl::opt<bool> EnableSub("enable-sub", cl::init(false), cl::Hidden,
 		cl::desc("Enable Substitution"));
 cl::opt<bool> EnableFla("enable-fla", cl::init(false), cl::Hidden,

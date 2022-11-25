@@ -19,7 +19,6 @@ namespace llvm {
 class PassRegistry;
 
 // Khaos
-void initializeDeepFusionPreparePass(PassRegistry&);
 void initializeFusPass(PassRegistry&);
 void initializeFisPositionPass(PassRegistry&);
 void initializeFisPass(PassRegistry&);

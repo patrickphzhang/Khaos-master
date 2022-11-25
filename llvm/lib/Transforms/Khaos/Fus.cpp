@@ -14,8 +14,6 @@
 
 #include "llvm/Transforms/Khaos/Utils.h"
 #include "llvm/Transforms/Utils.h"
-#include "llvm/Transforms/Khaos/HarmnessAnalysis.h"
-#include "llvm/Transforms/Khaos/DeepFusionPrepare.h"
 #include "llvm/IR/Verifier.h"
 
 #define DEBUG_TYPE "Fus"
@@ -40,7 +38,6 @@ namespace {
         void getAnalysisUsage(AnalysisUsage &AU) const override {
             
             AU.addRequired<BlockFrequencyInfoWrapperPass>();
-                AU.addRequired<HarmnessAnalysis>();
                 AU.addRequired<LoopInfoWrapperPass>();
                 AU.addRequired<DominatorTreeWrapperPass>();
                 AU.setPreservesAll();
@@ -64,13 +61,6 @@ namespace {
                                  SmallVector<Type *, 8> &F2ParamTypes);
         Type* mergeType(Type *T1, Type *T2);
         Value *getExactValue(Value * value);
-        bool isEHRelatedFunction(Function *F);
-        bool deepFusion(ValueToValueMapTy &VMap);
-        BasicBlock* preprocessToMergable(BasicBlock *BB);
-        void moveAllocas();
-        void getHarmlessBasicBlocks(Function *F, std::vector<BasicBlock *> &HarmlessBB);
-        BasicBlock *getOneHarmlessBasicBlock(std::vector<BasicBlock *> &HarmlessBB);
-        void getValuesNeedPHI(BasicBlock *Root, std::map<Value*, SetVector<Instruction*>*> &Values);
         void ffa(Function *F);
         void getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers);
         void getFunctionUsed(Instruction *I, SetVector<Function *> &UsedFunctions);
@@ -80,7 +70,6 @@ namespace {
         void insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
                                     ValueToValueMapTy &VMap);
     };
-
 }
 
 char Fus::ID = 0;
@@ -205,16 +194,10 @@ bool Fus::runOnModule(Module &M) {
     C->setDiscardValueNames(false);
     uint TotalCount = 0;
     // Collect mergeable function.
-    SetVector<Function *> IntDeepFusionFunctions;
-    SetVector<Function *> FloatDeepFusionFunctions;
     SetVector<Function *> IntFuncsToFusion;
     SetVector<Function *> FloatFuncsToFusion;
     SetVector<Function *> FuncsMayPropagate;
     SetVector<Function *> FuncsHasBeenFissioned;
-    bool DeepFusionMode = false;
-    if (EnableDeepFusion && !EnableFis) {
-        DeepFusionMode = true;
-    }
     for (auto &F : *MM) {
         if (F.isCreatedByKhaos()) {
             StringRef OriginName = F.getName().substr(0, F.getOriginNameLength());
@@ -283,11 +266,9 @@ bool Fus::runOnModule(Module &M) {
         }
         if (MayVarArg)
             continue;
-        if (F.getReturnType()->isVectorTy()) {
-             // errs() << "We do not merge vector type for now\n";
-        } else if (F.getReturnType()->isStructTy()) {
+        if (!F.getReturnType()->isVectorTy() && !F.getReturnType()->isStructTy()) {
+            // errs() << "We do not merge vector type for now\n";
             // errs() << "We do not merge struct type for now\n";
-        } else {
             // In source code, when we use struct/vector as an argument, 
             // it's actually an struct pointer in LLVM IR.
             // The only case the struct/vector arguments exist is in the fissioned functions.
@@ -305,69 +286,24 @@ bool Fus::runOnModule(Module &M) {
             }
             if (StructArg)
                 continue;
-            if (DeepFusionMode) {
-                // deep fusion
-                auto const &HarmnessMap = getAnalysis<HarmnessAnalysis>().getHarmnessMap();
-                if (HarmnessMap.count(&F) && HarmnessMap.lookup(&F) <= 1
-                    && FunctionsWithLoop.find(&F) == FunctionsWithLoop.end()
-                    && !isEHRelatedFunction(&F)) {
-                    // found a function that can be deep fusioned
-                    if (F.getReturnType()->isFloatingPointTy()) {
-                        FloatDeepFusionFunctions.insert(&F);
-                    } else {
-                        IntDeepFusionFunctions.insert(&F);
-                    }
-                } else {
-                    // no it can't
-                    if (F.getReturnType()->isFloatingPointTy()) 
-                        FloatFuncsToFusion.insert(&F);
-                    else
-                        IntFuncsToFusion.insert(&F);
-                }
-            } else {
-                if (F.getReturnType()->isFloatingPointTy()) 
-                    FloatFuncsToFusion.insert(&F);
-                else
-                    IntFuncsToFusion.insert(&F);
-            }
+            if (F.getReturnType()->isFloatingPointTy()) 
+                FloatFuncsToFusion.insert(&F);
+            else
+                IntFuncsToFusion.insert(&F);
         }
     }
-    // // errs() << "IntFuncsToFusion: " << IntFuncsToFusion.size() << "\n";
-    // // errs() << "FloatFuncsToFusion: " << FloatFuncsToFusion.size() << "\n";
+    
     uint MergeCount = 0;
     std::map<uint, uint> ArgSizeCount;
     std::map<uint, uint> FusionArgSizeCount;
-    while (FloatFuncsToFusion.size() >= 2 || IntFuncsToFusion.size() >= 2
-           || IntDeepFusionFunctions.size() >= 2 || FloatDeepFusionFunctions.size() >= 2) {
+    while (FloatFuncsToFusion.size() >= 2 || IntFuncsToFusion.size() >= 2) {
         // Random choose two functions to merge.
-        tie(F1, F2) = randomChooseFromSet(IntDeepFusionFunctions);
-        if (F2 == nullptr) {
-            if (F1 == nullptr) {
-                // // errs() << "no mergeable function from IntDeepFusionFunctions\n";
-                tie(F1, F2) = randomChooseFromSet(FloatDeepFusionFunctions);
-                if (F2 == nullptr) {
-                    if (F1 == nullptr) {
-                        // // errs() << "no mergeable function from FloatDeepFusionFunctions\n";
-                        // since no function can be fusioned deeply, we turn off this switch
-                        DeepFusionMode = false;
-                        tie(F1, F2) = randomChooseFromSet(IntFuncsToFusion);
-                        if (F1 == nullptr || F2 == nullptr) {
-                            // // errs() << "no mergeable function from IntFuncsToFusion\n";
-                            tie(F1, F2) = randomChooseFromSet(FloatFuncsToFusion);
-                            if (F1 == nullptr || F2 == nullptr) {
-                                // // errs() << "no mergeable function from FloatFuncsToFusion\n";
-                                continue;
-                            }
-                        }
-                    } else {
-                        // we do not want throw this function away
-                        FloatFuncsToFusion.insert(F1);
-                        continue;
-                    }
-                }
-            } else {
-                // we do not want throw this function away
-                IntFuncsToFusion.insert(F1);
+        tie(F1, F2) = randomChooseFromSet(IntFuncsToFusion);
+        if (F1 == nullptr || F2 == nullptr) {
+            // // errs() << "no mergeable function from IntFuncsToFusion\n";
+            tie(F1, F2) = randomChooseFromSet(FloatFuncsToFusion);
+            if (F1 == nullptr || F2 == nullptr) {
+                // // errs() << "no mergeable function from FloatFuncsToFusion\n";
                 continue;
             }
         }
@@ -537,24 +473,6 @@ bool Fus::runOnModule(Module &M) {
         BasicBlock *F1Header = moveFunction(F1, FusionFunction, &M, VMap);
         BasicBlock *F2Header = moveFunction(F2, FusionFunction, &M, VMap);
         BranchInst::Create(F1Header, F2Header, (Value *)icmp, CtrlBB);
-        // Check if we need deep fusion
-        if (DeepFusionMode) {
-            // backup
-            ValueToValueMapTy BKVMap;
-            Function *FusionFunctionBK = CloneFunction(FusionFunction, BKVMap);
-            if (deepFusion(VMap) && !verifyFunction(*FusionFunction)) {
-                // good, at least the allocas is merged
-                // remove bk
-                FusionFunctionBK->dropAllReferences();
-                FusionFunctionBK->eraseFromParent();
-            } else {
-                // roll back
-                FusionFunction->replaceAllUsesWith(FusionFunctionBK);
-                FusionFunction->dropAllReferences();
-                FusionFunction->eraseFromParent();
-                FusionFunction = FusionFunctionBK;
-            }
-        }
         
         // Fix attributes for FusionFunction, because there are some conflicts between F1 and F2.
         ffa(FusionFunction);
@@ -856,374 +774,6 @@ BasicBlock *Fus::moveFunction(Function *SrcFunction,
     }
 
     return retBlock;
-}
-
-bool Fus::isEHRelatedFunction(Function *F) {
-    for (auto &BB : *F) {
-        if (BB.isEHPad()) {
-            return true;
-        }
-        for (auto &I : BB) {
-            if (isa<InvokeInst>(&I)) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-bool Fus::deepFusion(ValueToValueMapTy &VMap) {
-    // 0. merge all the allocas to the Fusion's entry
-    moveAllocas();
-    // 1. find a mergable pair of basic blocks from f1 and f2
-    std::vector<BasicBlock *> HarmlessBBF1, HarmlessBBF2;
-    getHarmlessBasicBlocks(F1, HarmlessBBF1);
-    getHarmlessBasicBlocks(F2, HarmlessBBF2);
-    
-    if (HarmlessBBF1.size() == 0 || HarmlessBBF2.size() == 0) {
-        // errs() << "no harmless basic block found, return\n";
-        return true;
-    }
-    outs() << "STATISTICS: HarmlessBB count" << HarmlessBBF1.size() << " " << HarmlessBBF2.size() << "\n";
-    BasicBlock *BBF1 = getOneHarmlessBasicBlock(HarmlessBBF1);
-    BasicBlock *BBF2 = getOneHarmlessBasicBlock(HarmlessBBF2);
-    if (BBF1 == nullptr || BBF2 == nullptr) {
-        // errs() << "no suitable harmless basic block found, return\n";
-        return true;
-    }
-    outs() << "STATISTICS: HarmlessBB size" << BBF1->size() << " " << BBF2->size() << "\n";
-    // 2. get corresponding pair in fusion
-    // level 1 deep fusion would split the bb, which affects the mapping
-    // use the last instruction to find the correct bb
-    Value *value1 = VMap[&BBF1->front()];
-    Value *value2 = VMap[&BBF2->front()];
-    Instruction *FirstInst1 = dyn_cast<Instruction>(value1);
-    Instruction *FirstInst2 = dyn_cast<Instruction>(value2);
-    assert(FirstInst1 && FirstInst2 && "empty map!");
-    BasicBlock *BB1 = FirstInst1->getParent();
-    BasicBlock *BB2 = FirstInst2->getParent();
-    assert(BB1 && BB2 && "Can not find the corresponding bb in fusion function!");
-    if (BB1 == &FusionFunction->getEntryBlock() || 
-        BB2 == &FusionFunction->getEntryBlock() ||
-        BB1 == BB2) {
-        // errs() << "We cannot merge entry BB\n";
-        return true;
-    }
-    for (BasicBlock *Pred : predecessors(BB1)) {
-        if (Pred == &FusionFunction->getEntryBlock()) {
-            for (BasicBlock *Pred2 : predecessors(BB2)) {
-                if (Pred2 == &FusionFunction->getEntryBlock()) {
-                    // this means we are merging entry BB's successor, which is meaningless
-                    return true;
-                }
-            }
-        } 
-    }
-    // 3. preprocess them, spilit phis and jccs, get the mergable part
-    BB1 = preprocessToMergable(BB1);
-    BB2 = preprocessToMergable(BB2);
-    // After the preprocess, the candidates maybe small.
-    // If they are small(like a branch), cancel the merge.
-    if (BB1->size() == 1 || BB2->size() == 1) {
-        // errs() << "they are too small to merge\n";
-        return true;
-    }
-    // 4. record all the needed phis.
-    // this will be used after merge
-    std::map<Value*, SetVector<Instruction*>*> ValuesNeedPHIForBB1, ValuesNeedPHIForBB2;
-    getValuesNeedPHI(BB1, ValuesNeedPHIForBB1);
-    getValuesNeedPHI(BB2, ValuesNeedPHIForBB2);
-
-    // 5. add phis in BB2, these phis are for BB2's instruction
-    // phi [null, BB1's pred], [normal_value, BB2's pred]
-    // as we have preprocessed BB2, we don't need to consider the original phis
-    BasicBlock::iterator It = BB2->begin();
-    while (It != BB2->end()) {
-        Instruction *Inst = &*It;
-        It++;
-        if (isa<BranchInst>(Inst)) continue;
-        if (PHINode *phi = dyn_cast<PHINode>(Inst)) {
-            for (BasicBlock *Pred : predecessors(BB1)) {
-                phi->addIncoming(Constant::getNullValue(phi->getType()), Pred); 
-            }
-            continue;
-        }
-        uint OperandNum = Inst->getNumOperands();
-        Value * Opi;
-        for (uint i = 0; i < OperandNum; i++) {
-            Opi = Inst->getOperand(i);
-            if (isa<Constant>(Opi)) {
-                continue;
-            } 
-            // check if this operand needs a phi
-            if (Instruction *OpiInst = dyn_cast<Instruction>(Opi)) {
-                BasicBlock *DefBB = OpiInst->getParent();
-                if (DefBB == &FusionFunction->getEntryBlock() || DefBB == BB2) {
-                    // no need
-                    continue;
-                }
-                PHINode *phi = PHINode::Create(Opi->getType(), 0, "", &BB2->front());
-                for (BasicBlock *Pred : predecessors(BB2)) {
-                   phi->addIncoming(Opi, Pred); 
-                }
-                for (BasicBlock *Pred : predecessors(BB1)) {
-                   phi->addIncoming(Constant::getNullValue(Opi->getType()), Pred); 
-                }
-                Inst->replaceUsesOfWith(Opi, phi);
-            }
-        }
-    }
-    // FusionFunction->dump();
-    // 5. merge them
-    uint size = BB1->size();
-    Instruction *InsertPos = &*BB2->getFirstInsertionPt();
-    while (size > 1) {
-        Instruction *ToMove = &BB1->front();
-        assert(!isa<PHINode>(ToMove) && "There should't be any PHIs in BB1\n");
-        ToMove->moveAfter(InsertPos);
-        InsertPos = ToMove;
-        // simply move instruction is not enough
-        // 6. add phis in BB2, these phis are for BB1's instruction
-        // phi [null, BB2's pred], [normal_value, BB1's pred]
-        if (PHINode *phi = dyn_cast<PHINode>(ToMove)) {
-            for (BasicBlock *Pred : predecessors(BB2)) {
-                phi->addIncoming(Constant::getNullValue(phi->getType()), Pred); 
-            }
-            continue;
-        }
-        uint OperandNum = ToMove->getNumOperands();
-        size--;
-        Value * Opi;
-        for (uint i = 0; i < OperandNum; i++) {
-            Opi = ToMove->getOperand(i);
-            if (isa<Constant>(Opi)) {
-                continue;
-            } 
-            // check if this operand needs a phi
-            if (Instruction *OpiInst = dyn_cast<Instruction>(Opi)) {
-                BasicBlock *DefBB = OpiInst->getParent();
-                if (DefBB == &FusionFunction->getEntryBlock() || DefBB == BB2) {
-                    // no need
-                    continue;
-                }
-                PHINode *phi = PHINode::Create(Opi->getType(), 0, "", &BB2->front());
-                for (BasicBlock *Pred : predecessors(BB1)) {
-                   phi->addIncoming(Opi, Pred); 
-                }
-                for (BasicBlock *Pred : predecessors(BB2)) {
-                   phi->addIncoming(Constant::getNullValue(Opi->getType()), Pred); 
-                }
-                ToMove->replaceUsesOfWith(Opi, phi);
-            }
-        }
-    }
-    // 7. add phis in BB2, these phis are needed because we changed the CFG
-    for (auto it = ValuesNeedPHIForBB1.begin(), 
-              ie = ValuesNeedPHIForBB1.end(); it != ie; it++) {
-        Value *ValueNeedPHI = it->first;
-        PHINode *phi = PHINode::Create(ValueNeedPHI->getType(), 0, "", &BB2->front());
-        for (BasicBlock *Pred : predecessors(BB1)) {
-            phi->addIncoming(ValueNeedPHI, Pred); 
-        }
-        for (BasicBlock *Pred : predecessors(BB2)) {
-            phi->addIncoming(Constant::getNullValue(ValueNeedPHI->getType()), Pred); 
-        }
-
-        SetVector<Instruction*> *UseInsts = it->second;
-        while (UseInsts->size()) {
-            Instruction *UseInst = UseInsts->pop_back_val();
-            UseInst->replaceUsesOfWith(ValueNeedPHI, phi);
-        }
-    }
-    for (auto it = ValuesNeedPHIForBB2.begin(), 
-              ie = ValuesNeedPHIForBB2.end(); it != ie; it++) {
-        Value *ValueNeedPHI = it->first;
-        SetVector<Instruction*> *UseInsts = it->second;
-        PHINode *phi = PHINode::Create(ValueNeedPHI->getType(), 0, "", &BB2->front());
-        for (BasicBlock *Pred : predecessors(BB2)) {
-            phi->addIncoming(ValueNeedPHI, Pred); 
-        }
-        for (BasicBlock *Pred : predecessors(BB1)) {
-            phi->addIncoming(Constant::getNullValue(ValueNeedPHI->getType()), Pred); 
-        }
-        while (UseInsts->size()) {
-            Instruction *UseInst = UseInsts->pop_back_val();
-            UseInst->replaceUsesOfWith(ValueNeedPHI, phi);
-        }
-    }
-    BB1->replaceAllUsesWith(BB2);
-    
-    BranchInst *BI1 = dyn_cast<BranchInst>(&BB1->back());
-    BranchInst *BI2 = dyn_cast<BranchInst>(&BB2->back());
-    assert(BI1 && BI1->isUnconditional() && "There should be an unconditional branch!");
-    assert(BI2 && BI2->isUnconditional() && "There should be an unconditional branch!");
-    BasicBlock *TargetBB1 = dyn_cast<BasicBlock>(BI1->getOperand(0));
-    BasicBlock *TargetBB2 = dyn_cast<BasicBlock>(BI2->getOperand(0));
-    BI2->eraseFromParent();
-    Value *LHS = FusionFunction->getArg(0);
-    Value *RHS = ConstantInt::get(Int8Ty, 0);
-    ICmpInst *icmp = new ICmpInst(*BB2, ICmpInst::ICMP_EQ, LHS, RHS);
-    BranchInst::Create(TargetBB1, TargetBB2, (Value *)icmp, BB2);
-    BB1->eraseFromParent();
-    if (!verifyFunction(*FusionFunction)) {
-        outs() << "STATISTICS: deepFusion succeed\n";
-        return true;
-    } else {
-        outs() << "STATISTICS: deepFusion failed\n";
-        return false;
-    }
-}
-
-BasicBlock* Fus::preprocessToMergable(BasicBlock *BB) {
-    // split the head and tail, get the body part
-    // split head
-    BasicBlock::iterator i1 = BB->begin();
-    if (&*i1 != BB->getFirstNonPHIOrDbgOrLifetime()) {
-        i1 = (BasicBlock::iterator)BB->getFirstNonPHIOrDbgOrLifetime();
-        BB = BB->splitBasicBlock(i1);
-    }
-    // split tail
-    i1 = --(BB->end());
-    if (BranchInst *bi = dyn_cast<BranchInst>(&*i1)) {
-        if (bi->isConditional()) {
-            // assumption: cmp and branch are neighbor
-            // --i1;
-            // assert(isa<CmpInst>(&*i1) && "We assume cmp and branch are neighbors!");
-            BB->splitBasicBlock(i1);
-        }
-    }
-    // We may optimize this later, adding bitcasts or phis instead of spiliting.
-    i1 = --(BB->end());
-    if (ReturnInst *bi = dyn_cast<ReturnInst>(&*i1)) {
-        BB->splitBasicBlock(i1);
-    }
-    return BB;
-}
-
-BasicBlock* Fus::getOneHarmlessBasicBlock(std::vector<BasicBlock *> &HarmlessBB) {
-    //get the largest, at least two instruction
-    int size = 1;
-    BasicBlock *LargestBB = nullptr;
-    for (uint i = 0; i < HarmlessBB.size(); i++) {
-        if (HarmlessBB.at(i)->size() > size) {
-            size = HarmlessBB.at(i)->size();
-            LargestBB = HarmlessBB.at(i);
-        }
-    }
-    return LargestBB;
-}
-
-void Fus::getHarmlessBasicBlocks(Function *F, std::vector<BasicBlock *> &HarmlessBB) {
-    Instruction *InsertPoint = &F->getEntryBlock().front();
-    auto const &HarmnessMap = getAnalysis<HarmnessAnalysis>()
-                          .getHarmnessMap();
-    for (BasicBlock &BB : *F) {
-        if (HarmnessMap.count(&BB) && HarmnessMap.lookup(&BB) == 0
-            && BB.size() > 1) {
-            bool BBMeanful = false;
-            for (auto &Inst : BB) {
-                if (!isa<PHINode>(&Inst) && !isa<BranchInst>(&Inst)
-                    && !isa<ReturnInst>(&Inst)) {
-                    BBMeanful = true;
-                    break;
-                }
-            }
-            for (auto &Inst : BB) {
-                if (isa<SwitchInst>(&Inst)) {
-                    // switch can not be merged
-                    BBMeanful = false;
-                    break;
-                }
-            }
-            if (BBMeanful) {
-                HarmlessBB.push_back(&BB);
-            }
-        }
-    }
-}
-
-// key: values need phi
-// value: instructions use the key
-void Fus::getValuesNeedPHI(BasicBlock *Root, std::map<Value*, SetVector<Instruction*>*> &Values) {
-    DT = &getAnalysis<DominatorTreeWrapperPass>(*FusionFunction).getDomTree();
-    for (auto &BB : *FusionFunction) {
-        // it says that bb does not dominate itself, but we still added this check
-        if (&BB == Root)
-            continue;
-        if (DT->dominates(Root, &BB)) {
-            for (auto &Inst : BB) {
-                // for all the instructions root dominates,
-                // all its operands should be dominated by the root after deep fusion
-                // if it does't, it will break the SSA form, eg
-                //       defBB
-                //      /    \
-                //     xx    yy
-                //      \    /
-                //       root
-                //        |
-                //       useBB
-                // after deep fusion it would be
-                //            ctrlBB
-                //           /     \
-                //       defBB      ...
-                //      /    \      ...
-                //     xx    yy     ...
-                //        \    \    /
-                //            root'
-                //            /  \
-                //        useBB   ...
-                // defBB does not domanites useBB
-                // so we need to add phis in root', now we just record what should be added.
-                if (isa<BranchInst>(&Inst)) continue;
-                uint OperandNum = Inst.getNumOperands();
-                Value * Opi;
-                for (uint i = 0; i < OperandNum; i++) {
-                    Opi = Inst.getOperand(i);
-                    // if (isa<Constant>(Opi)) continue;
-                    if (Instruction *OpInst = dyn_cast<Instruction>(Opi)) {
-                        BasicBlock *DefBB = OpInst->getParent();
-                        if (DefBB == Root) continue;
-                        if (!DT->dominates(Root, DefBB)) {
-                            // this operand is defined before root bb, which needs a phi
-                            // we record this instruction and the value
-                            // which will be used when adding phis and replaceUseOfWith
-                            SetVector<Instruction*> *UseInsts;
-                            if (Values.find(Opi) != Values.end()) {
-                                // we already know, record this use inst
-                                UseInsts = Values[Opi];
-                            } else {
-                                // new a set, record this use Inst
-                                UseInsts = new SetVector<Instruction*>();
-                                Values[Opi] = UseInsts;
-                            }
-                            if (!UseInsts->count(&Inst)) {
-                                UseInsts->insert(&Inst);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-void Fus::moveAllocas() {
-    std::vector<Instruction*> toMove;
-    for (BasicBlock &BB : *FusionFunction) {
-        for (Instruction &I : BB) {
-            if (isa<AllocaInst>(I)) {
-                toMove.push_back(&I);
-            }
-        }
-    }
-    Instruction *InsertPoint = &FusionFunction->getEntryBlock().front();
-    while (!toMove.empty())
-    {
-        Instruction *I = toMove.back();
-        toMove.pop_back();
-        I->moveBefore(InsertPoint);
-        InsertPoint = I;
-    }
 }
 
 void Fus::replaceAliasUsers(Function *Old) {
