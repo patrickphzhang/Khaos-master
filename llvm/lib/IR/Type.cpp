@@ -666,3 +666,19 @@ bool PointerType::isValidElementType(Type *ElemTy) {
 bool PointerType::isLoadableOrStorableType(Type *ElemTy) {
   return isValidElementType(ElemTy) && !ElemTy->isFunctionTy();
 }
+
+// Khaos
+Type * Type::mergeType(Type * T2) {
+    if (ID == StructTyID || ID == PointerTyID || ID == ArrayTyID || ID == VectorTyID || 
+        T2->isStructTy() || T2->isPointerTy()|| T2->isArrayTy() || T2->isVectorTy())
+        return nullptr; // which means int64ty
+    else {
+        // get size
+        assert(isSized() && T2->isSized() && "unhandled case when merging types");
+        if (getScalarSizeInBits() > T2->getScalarSizeInBits()) {
+            return this;
+        } else {
+            return T2;
+        }
+    }
+}

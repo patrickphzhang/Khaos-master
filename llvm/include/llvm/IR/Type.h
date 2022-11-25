@@ -306,6 +306,9 @@ public:
     return const_cast<Type*>(this);
   }
 
+  // Khaos: merge two type
+  Type * mergeType(Type * T2);
+
   //===--------------------------------------------------------------------===//
   // Type Iteration support.
   //

@@ -370,6 +370,8 @@ bool Fus::runOnModule(Module &M) {
             FusionReturnType = F1->getReturnType();
         } else {
             FusionReturnType = mergeType(F1->getReturnType(), F2->getReturnType());
+            if (!FusionReturnType)
+                FusionReturnType = Int64Ty;
         }
         FunctionType *funcType = FunctionType::get(FusionReturnType, FusionParamTypes, false);
         FusionFunction = Function::Create(funcType, GlobalValue::InternalLinkage, F1->getAddressSpace(),
@@ -680,6 +682,8 @@ void Fus::mergeFunctionParams(
     uint i = 0;
     for (; i < Small->size(); i++) {
         MergedType = mergeType(F1ParamTypes[i], F2ParamTypes[i]);
+        if (!MergedType)
+            MergedType = Int64Ty;
         ParamTypes.push_back(MergedType);
     }
     for (; i < Large->size(); i++) {
