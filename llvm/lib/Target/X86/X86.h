@@ -27,9 +27,6 @@ class X86RegisterBankInfo;
 class X86Subtarget;
 class X86TargetMachine;
 
-// Khaos
-FunctionPass *createDeepFusionLevel1Pass();
-
 /// This pass converts a legalized DAG into a X86-specific DAG, ready for
 /// instruction scheduling.
 FunctionPass *createX86ISelDag(X86TargetMachine &TM,
@@ -147,7 +144,6 @@ void initializeX86DomainReassignmentPass(PassRegistry &);
 void initializeX86ExecutionDomainFixPass(PassRegistry &);
 void initializeX86FlagsCopyLoweringPassPass(PassRegistry &);
 void initializeX86SpeculativeLoadHardeningPassPass(PassRegistry &);
-void initializeDeepFusionLevel1PassPass(PassRegistry &);
 void initializeDebugPassPass(PassRegistry &);
 
 } // End llvm namespace

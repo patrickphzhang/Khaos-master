@@ -24,7 +24,6 @@ namespace {
     struct Fus : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
         const string KhaosName = KHAOSNAME_FUS;
-        const int DeepLevel = LevelDeepFusion;
         LLVMContext *C;
         Module *MM;
         Type *VoidTy, *Int8Ty, *Int8PtrTy, *Int64Ty;
@@ -34,7 +33,6 @@ namespace {
         DominatorTree *DT = nullptr;
         SmallVector<Type *, 8> FusionParamTypes;
         SmallVector<Type *, 8> IntParamTypes, FloatParamTypes, F1VectorParamTypes, F2VectorParamTypes;
-        uint TrampolineID = 0;
         Fus() : ModulePass(ID) {
             initializeFusPass(*PassRegistry::getPassRegistry());
         }
@@ -67,14 +65,12 @@ namespace {
         Type* mergeType(Type *T1, Type *T2);
         Value *getExactValue(Value * value);
         bool isEHRelatedFunction(Function *F);
-        void deepFusionLevel1(ValueToValueMapTy &VMap, Function *from, Function *to, bool IsFirst);
-        bool deepFusionLevel2(ValueToValueMapTy &VMap);
+        bool deepFusion(ValueToValueMapTy &VMap);
         BasicBlock* preprocessToMergable(BasicBlock *BB);
         void moveAllocas();
         void getHarmlessBasicBlocks(Function *F, std::vector<BasicBlock *> &HarmlessBB);
         BasicBlock *getOneHarmlessBasicBlock(std::vector<BasicBlock *> &HarmlessBB);
         void getValuesNeedPHI(BasicBlock *Root, std::map<Value*, SetVector<Instruction*>*> &Values);
-        void insertOpaquePredict(BasicBlock *from, BasicBlock *to, bool IsFirst);
         void ffa(Function *F);
         void getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers);
         void getFunctionUsed(Instruction *I, SetVector<Function *> &UsedFunctions);
@@ -216,7 +212,7 @@ bool Fus::runOnModule(Module &M) {
     SetVector<Function *> FuncsMayPropagate;
     SetVector<Function *> FuncsHasBeenFissioned;
     bool DeepFusionMode = false;
-    if (DeepLevel > 1 && !EnableFis) {
+    if (EnableDeepFusion && !EnableFis) {
         DeepFusionMode = true;
     }
     for (auto &F : *MM) {
@@ -309,7 +305,7 @@ bool Fus::runOnModule(Module &M) {
             }
             if (StructArg)
                 continue;
-            if (DeepLevel > 1) {
+            if (DeepFusionMode) {
                 // deep fusion
                 auto const &HarmnessMap = getAnalysis<HarmnessAnalysis>().getHarmnessMap();
                 if (HarmnessMap.count(&F) && HarmnessMap.lookup(&F) <= 1
@@ -338,7 +334,6 @@ bool Fus::runOnModule(Module &M) {
     }
     // // errs() << "IntFuncsToFusion: " << IntFuncsToFusion.size() << "\n";
     // // errs() << "FloatFuncsToFusion: " << FloatFuncsToFusion.size() << "\n";
-    TrampolineID = 0;
     uint MergeCount = 0;
     std::map<uint, uint> ArgSizeCount;
     std::map<uint, uint> FusionArgSizeCount;
@@ -543,29 +538,21 @@ bool Fus::runOnModule(Module &M) {
         BasicBlock *F2Header = moveFunction(F2, FusionFunction, &M, VMap);
         BranchInst::Create(F1Header, F2Header, (Value *)icmp, CtrlBB);
         // Check if we need deep fusion
-        if (DeepLevel > 0) {
-            // it's a three-step process
-            // step 1, level 1 for F1->F2
-            deepFusionLevel1(VMap, F1, F2, true);
-            // step 2, level 1 for F2->F1
-            deepFusionLevel1(VMap, F2, F1, false);
-            // step 3, level 2 for F1 and F2
-            if (DeepLevel > 1 && DeepFusionMode) {
-                // backup
-                ValueToValueMapTy BKVMap;
-                Function *FusionFunctionBK = CloneFunction(FusionFunction, BKVMap);
-                if (deepFusionLevel2(VMap) && !verifyFunction(*FusionFunction)) {
-                    // good, at least the allocas is merged
-                    // remove bk
-                    FusionFunctionBK->dropAllReferences();
-                    FusionFunctionBK->eraseFromParent();
-                } else {
-                    // roll back
-                    FusionFunction->replaceAllUsesWith(FusionFunctionBK);
-                    FusionFunction->dropAllReferences();
-                    FusionFunction->eraseFromParent();
-                    FusionFunction = FusionFunctionBK;
-                }
+        if (DeepFusionMode) {
+            // backup
+            ValueToValueMapTy BKVMap;
+            Function *FusionFunctionBK = CloneFunction(FusionFunction, BKVMap);
+            if (deepFusion(VMap) && !verifyFunction(*FusionFunction)) {
+                // good, at least the allocas is merged
+                // remove bk
+                FusionFunctionBK->dropAllReferences();
+                FusionFunctionBK->eraseFromParent();
+            } else {
+                // roll back
+                FusionFunction->replaceAllUsesWith(FusionFunctionBK);
+                FusionFunction->dropAllReferences();
+                FusionFunction->eraseFromParent();
+                FusionFunction = FusionFunctionBK;
             }
         }
         
@@ -885,29 +872,7 @@ bool Fus::isEHRelatedFunction(Function *F) {
     return false;
 }
 
-void Fus::deepFusionLevel1(ValueToValueMapTy &VMap, Function *from, Function *to, bool IsFirst) {
-    // we do not handle exception irrelevent function
-    if (isEHRelatedFunction(from)) {
-        return;
-    }
-    unsigned idxFrom = rand() % (from->size()/2 + from->size()%2);
-    unsigned idxTo = rand() % (to->size());
-    auto itFrom = from->begin();
-    auto itTo = to->begin();
-    while (idxFrom-- > 0)
-        itFrom++;
-    while (idxTo-- > 0)
-        itTo++;
-    
-    Value *valueFrom = VMap[&*itFrom];
-    Value *valueTo = VMap[&*itTo];
-    BasicBlock *fromBB = dyn_cast<BasicBlock>(valueFrom);
-    BasicBlock *toBB = dyn_cast<BasicBlock>(valueTo);
-    if (fromBB && toBB)
-        insertOpaquePredict(fromBB, toBB, IsFirst);
-}
-
-bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
+bool Fus::deepFusion(ValueToValueMapTy &VMap) {
     // 0. merge all the allocas to the Fusion's entry
     moveAllocas();
     // 1. find a mergable pair of basic blocks from f1 and f2
@@ -1101,10 +1066,10 @@ bool Fus::deepFusionLevel2(ValueToValueMapTy &VMap) {
     BranchInst::Create(TargetBB1, TargetBB2, (Value *)icmp, BB2);
     BB1->eraseFromParent();
     if (!verifyFunction(*FusionFunction)) {
-        outs() << "STATISTICS: deepFusionLevel2 succeed\n";
+        outs() << "STATISTICS: deepFusion succeed\n";
         return true;
     } else {
-        outs() << "STATISTICS: deepFusionLevel2 failed\n";
+        outs() << "STATISTICS: deepFusion failed\n";
         return false;
     }
 }
@@ -1259,60 +1224,6 @@ void Fus::moveAllocas() {
         I->moveBefore(InsertPoint);
         InsertPoint = I;
     }
-}
-
-void Fus::insertOpaquePredict(BasicBlock *from, BasicBlock * to, bool IsFirst) {
-    BasicBlock::iterator i1 = from->begin();
-    if (from->getFirstNonPHIOrDbgOrLifetime()) {
-        i1 = (BasicBlock::iterator)from->getFirstNonPHIOrDbgOrLifetime();
-    }
-    Twine *var = new Twine("originalBB");
-    BasicBlock *originalBB = from->splitBasicBlock(i1, *var);
-
-    // we modify the terminators to adjust the control flow.
-    from->getTerminator()->eraseFromParent();
-
-    // prepare a trampline BB, for the ssa form, the branch will go to here first
-    // record the to bb in its instruction
-    TrampolineID++;
-    std::string ToName("deep_to");
-    ToName.append(itostr(TrampolineID));
-    StringRef BBName(ToName.c_str());
-    to->setName(BBName);
-    assert(to->getName().equals(BBName) && "Name set failed!\n");
-
-    std::string AsmStr("nop #");
-    AsmStr.append(to->getName().str());
-    
-    std::string TrampolineName("deep_trampoline");
-    TrampolineName.append(itostr(TrampolineID));
-    BasicBlock *TrampolineBB = BasicBlock::Create(*C, TrampolineName, FusionFunction);
-    FunctionType *AsmTy = FunctionType::get(VoidTy, {}, false);
-    Value * Nop = InlineAsm::get(AsmTy, AsmStr, "", false);
-    CallInst *TrampolineCall = CallInst::Create(Nop, {}, "", TrampolineBB);
-    BlockAddress *TrampolineAddress = BlockAddress::get(TrampolineBB);
-    IndirectBrInst::Create(TrampolineAddress, 1, TrampolineBB);
-    
-    // The always true condition. End of the first block
-    // For now, the condition is (x * (x + 1) % 2 == 0)
-    // always-true
-    FunctionType *RandomFuncTy = FunctionType::get(Int8Ty, {Int8Ty}, false);
-    Function *RandomFunc = cast<Function>(MM->getOrInsertFunction("get_random", RandomFuncTy).getCallee());
-    Value *Ctrl = FusionFunction->getArg(0);
-    CallInst *X = CallInst::Create(RandomFunc, {Ctrl}, "", from);
-
-    Twine *var4 = new Twine("condition");
-    ICmpInst *condition = nullptr;
-    if (IsFirst) {
-        condition = new ICmpInst(*from, ICmpInst::ICMP_EQ, X,
-                                       (Value*)ConstantInt::get(Int8Ty, 0), *var4);
-    } else {
-        condition = new ICmpInst(*from, ICmpInst::ICMP_NE, X,
-                                       (Value*)ConstantInt::get(Int8Ty, 0), *var4);
-    }
-    // Jump to the original basic block if the condition is true or
-    // to the toBB if false.
-    BranchInst::Create(originalBB, TrampolineBB, (Value *)condition, from);
 }
 
 void Fus::replaceAliasUsers(Function *Old) {

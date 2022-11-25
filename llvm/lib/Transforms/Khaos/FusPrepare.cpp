@@ -25,7 +25,6 @@ namespace llvm {
 namespace {
     struct FusPrepare : public FunctionPass {
         static char ID; // Pass identification, replacement for typeid
-        const int DeepLevel = LevelDeepFusion;
         FusPrepare() : FunctionPass(ID){}
 
         bool runOnFunction(Function &F) override;

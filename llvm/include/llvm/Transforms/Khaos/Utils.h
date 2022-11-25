@@ -90,12 +90,12 @@ bool toObfuscate(bool flag, Function *f, std::string attribute);
 
 
 extern cl::opt<int> RatioGlobal;
-extern cl::opt<int> LevelDeepFusion;
 extern cl::opt<int> RatioObfuscation;
 extern cl::opt<int> RatioFis;
 
 // KHAOS
 extern cl::opt<bool> EnableFus;
+extern cl::opt<bool> EnableDeepFusion;
 extern cl::opt<bool> EnableFis;
 extern cl::opt<bool> FissionedFunctionOnly;
 extern cl::opt<bool> OriginFunctionOnly;

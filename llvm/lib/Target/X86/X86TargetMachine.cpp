@@ -49,9 +49,6 @@
 #include <memory>
 #include <string>
 
-// Khaos
-#include "llvm/Transforms/Khaos/Utils.h"
-
 using namespace llvm;
 
 static cl::opt<bool> EnableMachineCombinerPass("x86-machine-combiner",
@@ -84,7 +81,6 @@ extern "C" void LLVMInitializeX86Target() {
   initializeX86SpeculativeLoadHardeningPassPass(PR);
   initializeX86FlagsCopyLoweringPassPass(PR);
   initializeX86CondBrFoldingPassPass(PR);
-  initializeDeepFusionLevel1PassPass(PR);
 }
 
 static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
@@ -532,13 +528,6 @@ void X86PassConfig::addPreEmitPass2() {
       (!TT.isOSWindows() ||
        MAI->getExceptionHandlingType() == ExceptionHandling::DwarfCFI))
     addPass(createCFIInstrInserter());
-
-    
-  if (EnableFus && LevelDeepFusion > 0) {
-    addPass(createDeepFusionLevel1Pass());
-  }
-  
-
 }
 
 std::unique_ptr<CSEConfigBase> X86PassConfig::getCSEConfig() const {
