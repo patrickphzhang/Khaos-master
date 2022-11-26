@@ -59,7 +59,6 @@ namespace {
         void mergeFunctionParams(SmallVector<Type *, 8> &ParamTypes,
                                  SmallVector<Type *, 8> &F1ParamTypes,
                                  SmallVector<Type *, 8> &F2ParamTypes);
-        Value *getExactValue(Value * value);
         void ffa(Function *F);
         void getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers);
         void getFunctionUsed(Instruction *I, SetVector<Function *> &UsedFunctions);
@@ -874,16 +873,6 @@ void Fus::replaceDirectCallers(Function *Old, Function *New, bool IsFirst) {
             else
                 OldCallee->deleteValue();
         }
-    }
-}
-
-Value *Fus::getExactValue(Value * value) {
-    if (BitCastOperator * BO = dyn_cast<BitCastOperator>(value)) {
-        return getExactValue(BO->getOperand(0));
-    } else if (GlobalAlias *GA = dyn_cast<GlobalAlias>(value)){
-        return getExactValue(GA->getAliasee());
-    } else {
-        return value;
     }
 }
 

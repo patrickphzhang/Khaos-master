@@ -28,22 +28,11 @@ namespace {
         FusPrepare() : FunctionPass(ID){}
 
         bool runOnFunction(Function &F) override;
-        Value *getExactValue(Value * value);
     };
     
 }
 
 char FusPrepare::ID = 0;
-
-Value *FusPrepare::getExactValue(Value * value) {
-    if (BitCastOperator * BO = dyn_cast<BitCastOperator>(value)) {
-        return getExactValue(BO->getOperand(0));
-    } else if (GlobalAlias *GA = dyn_cast<GlobalAlias>(value)){
-        return getExactValue(GA->getAliasee());
-    } else {
-        return value;
-    }
-}
 
 bool FusPrepare::runOnFunction(Function &F) {
     for (auto &BB : F) {

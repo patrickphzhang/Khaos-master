@@ -86,7 +86,7 @@ string funcNameDemangle(string funcName);
 void fixStack(Function *f);
 std::string readAnnotate(Function *f);
 bool toObfuscate(bool flag, Function *f, std::string attribute);
-
+Value *getExactValue(Value * value);
 
 extern cl::opt<int> RatioGlobal;
 extern cl::opt<int> RatioObfuscation;
