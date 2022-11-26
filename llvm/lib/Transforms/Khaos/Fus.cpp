@@ -59,7 +59,6 @@ namespace {
         void mergeFunctionParams(SmallVector<Type *, 8> &ParamTypes,
                                  SmallVector<Type *, 8> &F1ParamTypes,
                                  SmallVector<Type *, 8> &F2ParamTypes);
-        Type* mergeType(Type *T1, Type *T2);
         Value *getExactValue(Value * value);
         void ffa(Function *F);
         void getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers);
@@ -369,7 +368,7 @@ bool Fus::runOnModule(Module &M) {
         } else if (F2->getReturnType()->isVoidTy()) {
             FusionReturnType = F1->getReturnType();
         } else {
-            FusionReturnType = mergeType(F1->getReturnType(), F2->getReturnType());
+            FusionReturnType = F1->getReturnType()->mergeType(F2->getReturnType());
             if (!FusionReturnType)
                 FusionReturnType = Int64Ty;
         }
@@ -681,30 +680,13 @@ void Fus::mergeFunctionParams(
     Type * MergedType;
     uint i = 0;
     for (; i < Small->size(); i++) {
-        MergedType = mergeType(F1ParamTypes[i], F2ParamTypes[i]);
+        MergedType = F1ParamTypes[i]->mergeType(F2ParamTypes[i]);
         if (!MergedType)
             MergedType = Int64Ty;
         ParamTypes.push_back(MergedType);
     }
     for (; i < Large->size(); i++) {
         ParamTypes.push_back((*Large)[i]);
-    }
-}
-
-Type * Fus::mergeType(Type * T1, Type * T2) {
-    if (T1->isStructTy() || T2->isStructTy()
-        || T1->isPointerTy() || T2->isPointerTy()
-        || T1->isArrayTy() || T2->isArrayTy()
-        || T1->isVectorTy() || T2->isVectorTy())
-        return Int64Ty;
-    else {
-        // get size
-        assert(T1->isSized() && T2->isSized() && "unhandled case when merging types");
-        if (T1->getScalarSizeInBits() > T2->getScalarSizeInBits()) {
-            return T1;
-        } else {
-            return T2;
-        }
     }
 }
 
