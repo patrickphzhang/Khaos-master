@@ -830,7 +830,6 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
 
   // Khaos
   if (EnableFus) {
-      PM.add(createFusPreparePass());
       PM.add(createFusPass());
       PM.add(createFisPositionPass());
   }

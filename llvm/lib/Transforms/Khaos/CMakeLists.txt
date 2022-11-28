@@ -5,7 +5,6 @@ add_llvm_library( LLVMKhaosMid
   Flattening.cpp
   Substitution.cpp 
   Fus.cpp
-  FusPrepare.cpp
   FisPosition.cpp
   KhaosCodeExtractor.cpp
   CryptoUtils.cpp

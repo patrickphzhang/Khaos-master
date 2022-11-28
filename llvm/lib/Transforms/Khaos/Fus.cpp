@@ -31,6 +31,7 @@ namespace {
         DominatorTree *DT = nullptr;
         SmallVector<Type *, 8> FusionParamTypes;
         SmallVector<Type *, 8> IntParamTypes, FloatParamTypes, F1VectorParamTypes, F2VectorParamTypes;
+        DenseMap<Function*, SetVector<Function*> *> LoopCalleeMap;
         Fus() : ModulePass(ID) {
             initializeFusPass(*PassRegistry::getPassRegistry());
         }
@@ -61,7 +62,7 @@ namespace {
                                  SmallVector<Type *, 8> &F2ParamTypes);
         void ffa(Function *F);
         void getCallInstBySearch(Function *Old, std::vector<CallBase *> &CallUsers);
-        void getFunctionUsed(Instruction *I, SetVector<Function *> &UsedFunctions);
+        void getFunctionUsed(CallBase *CB, SetVector<Function *> &UsedFunctions);
         void extractPtrAndCtrlBitAtICall(Module &M);
         uint getIntArgSize(Function *F);
         void arrangeArgList(Function *Old, BasicBlock *TrampolineBB, CallSite CS, SmallVector<Value*, 4> &NewArgs, bool IsFirst);
@@ -207,12 +208,21 @@ bool Fus::runOnModule(Module &M) {
         for (auto &BB : F) {
             for (auto &Inst : BB) {
                 if (CallBase *CB = dyn_cast<CallBase>(&Inst)) {
-                    Function * Callee = CB->getCalledFunction();
-                    if (Callee && Callee->isDeclaration()) {
-                        // // errs() << "external function " << Callee->getName() << "\n";
+                    Function * CalleeFunction = CB->getCalledFunction();
+                    if (CalleeFunction && CalleeFunction->isDeclaration())
                         getFunctionUsed(CB, FuncsMayPropagate);
+                    Value * Callee = getExactValue(CB->getCalledValue());
+                    if (Function * CalleeFunction = dyn_cast<Function>(Callee)) {
+                        if (LoopCalleeMap.find(&F) != LoopCalleeMap.end()) {
+                            SetVector<Function*> *CalleeSet = LoopCalleeMap[&F];
+                            CalleeSet->insert(CalleeFunction);
+                        } else {
+                            SetVector<Function*> *CalleeSet = new SetVector<Function*>();
+                            CalleeSet->insert(CalleeFunction);
+                            LoopCalleeMap.insert(make_pair(&F, CalleeSet));
+                        }
                     }
-                }
+                }   
             }
         }
     }
@@ -535,17 +545,13 @@ uint Fus::getIntArgSize(Function *F) {
     return IntArgSize;
 }
 
-void Fus::getFunctionUsed(Instruction *I, SetVector<Function *> &UsedFunctions) {
-    if (CallBase *CB = dyn_cast<CallBase>(I)) {
-        CallSite CS(CB);
-        Value* Argi;
-        for (unsigned argIdx = 0; argIdx < CS.arg_size(); argIdx++) {
-            Argi = getExactValue(CS.getArgument(argIdx));
-            if (Function * func = dyn_cast<Function>(Argi)) {
-                UsedFunctions.insert(func);
-            }
-        }
-            
+void Fus::getFunctionUsed(CallBase *CB, SetVector<Function *> &UsedFunctions) {
+    CallSite CS(CB);
+    Value* Argi;
+    for (unsigned argIdx = 0; argIdx < CS.arg_size(); argIdx++) {
+        Argi = getExactValue(CS.getArgument(argIdx));
+        if (Function * func = dyn_cast<Function>(Argi))
+            UsedFunctions.insert(func);
     }
 }
 

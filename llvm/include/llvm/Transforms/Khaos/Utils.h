@@ -61,13 +61,11 @@ using namespace std;
 
 namespace llvm {
     extern bool HasJsonParsed;
-    extern DenseMap<Function*, SetVector<Function*>*> LoopCalleeMap;
     extern std::set<Function*> FunctionsWithLoop;
 
     class ModulePass;
     extern ModulePass *createParseJsonPass();
     extern ModulePass *createFusPass();
-    extern Pass *createFusPreparePass();
     extern ModulePass *createFisPass(); 
     extern ModulePass *createFisPositionPass();
     extern ModulePass *createParseCOFFPass();
