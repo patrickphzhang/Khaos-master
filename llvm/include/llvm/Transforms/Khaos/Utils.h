@@ -61,33 +61,16 @@ using namespace std;
 
 namespace llvm {
     extern bool HasJsonParsed;
-    extern std::set<Function*> FunctionsWithLoop;
-
     class ModulePass;
-    extern ModulePass *createParseJsonPass();
     extern ModulePass *createFusPass();
     extern ModulePass *createFisPass(); 
     extern ModulePass *createFisPositionPass();
-    extern ModulePass *createParseCOFFPass();
-    extern Pass *createBogus ();
-	extern Pass *createBogus (bool flag);
-    extern Pass *createFlattening();
-	extern Pass *createFlattening(bool flag);
-    extern Pass *createSubstitution ();
-	extern Pass *createSubstitution (bool flag);
 }
 
 bool inConfigOrRandom(const string &KhaosName, Module &M, Function &F, int RatioLocal);
 bool inConfigOrRandom(const string &KhaosName, Module &M, GlobalVariable &GV, int RatioLocal);
-string funcNameDemangle(string funcName);
-
-void fixStack(Function *f);
-std::string readAnnotate(Function *f);
-bool toObfuscate(bool flag, Function *f, std::string attribute);
-Value *getExactValue(Value * value);
 
 extern cl::opt<int> RatioGlobal;
-extern cl::opt<int> RatioObfuscation;
 extern cl::opt<int> RatioFis;
 
 // KHAOS
@@ -96,11 +79,6 @@ extern cl::opt<bool> EnableFis;
 extern cl::opt<bool> FissionedFunctionOnly;
 extern cl::opt<bool> OriginFunctionOnly;
 extern cl::opt<bool> EnableTransformStat;
-
-// O-LLVM
-extern cl::opt<bool> EnableSub;
-extern cl::opt<bool> EnableFla;
-extern cl::opt<bool> EnableBog;
 
 
 #define KHAOSNAME_FUS    "Fus"

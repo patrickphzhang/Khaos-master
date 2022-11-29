@@ -65,6 +65,7 @@ namespace {
         void getFunctionUsed(CallBase *CB, SetVector<Function *> &UsedFunctions);
         void extractPtrAndCtrlBitAtICall(Module &M);
         uint getIntArgSize(Function *F);
+        Value *getExactValue(Value * value);
         void arrangeArgList(Function *Old, BasicBlock *TrampolineBB, CallSite CS, SmallVector<Value*, 4> &NewArgs, bool IsFirst);
         void insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
                                     ValueToValueMapTy &VMap);
@@ -72,6 +73,16 @@ namespace {
 }
 
 char Fus::ID = 0;
+
+Value *Fus::getExactValue(Value * value) {
+    if (BitCastOperator * BO = dyn_cast<BitCastOperator>(value)) {
+        return getExactValue(BO->getOperand(0));
+    } else if (GlobalAlias *GA = dyn_cast<GlobalAlias>(value)){
+        return getExactValue(GA->getAliasee());
+    } else {
+        return value;
+    }
+}
 
 void Fus::arrangeArgList(Function *Old, BasicBlock *TrampolineBB, CallSite CS, SmallVector<Value*, 4> &NewArgs, bool IsFirst) {
     // arrange new arg list
