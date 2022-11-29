@@ -60,18 +60,11 @@ using namespace llvm;
 using namespace std;
 
 namespace llvm {
-    extern bool HasJsonParsed;
     class ModulePass;
     extern ModulePass *createFusPass();
     extern ModulePass *createFisPass(); 
     extern ModulePass *createFisPositionPass();
 }
-
-bool inConfigOrRandom(const string &KhaosName, Module &M, Function &F, int RatioLocal);
-bool inConfigOrRandom(const string &KhaosName, Module &M, GlobalVariable &GV, int RatioLocal);
-
-extern cl::opt<int> RatioGlobal;
-extern cl::opt<int> RatioFis;
 
 // KHAOS
 extern cl::opt<bool> EnableFus;

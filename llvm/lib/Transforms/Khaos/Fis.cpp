@@ -42,7 +42,6 @@ namespace {
     struct Fis : public ModulePass {
         static char ID;
         const string KhaosName = KHAOSNAME_FIS;
-        const int ObfRatio = RatioFis;
         Json::Value root;  //record transform statistics in this json value
 
         Fis() : ModulePass(ID){
@@ -377,11 +376,6 @@ bool Fis::runOnModule(Module &M) {
             F.isCreatedByKhaos() || F.getName().find("std", 0) != StringRef::npos ||
             F.getName().find("INS_6VectorIdEEE5solveIN") != StringRef::npos) 
             continue;
-        
-        bool needProtect = inConfigOrRandom(KhaosName, M, F, ObfRatio);
-        if (!needProtect) { 
-            continue;
-        }
         LLVM_DEBUG(printBBFreqency(F));
         LLVM_DEBUG(outs() << "Fis try to split function: " << F.getName() << "\n");
         errs() << "STATISTICS Funtion origin info: " << F.getName() << ", " << F.size() << "\n";

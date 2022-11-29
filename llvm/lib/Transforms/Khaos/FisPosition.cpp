@@ -19,8 +19,6 @@
 namespace {
     struct FisPositionPass : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
-        const string KhaosName = KHAOSNAME_FIS;
-        const int ObfRatio = RatioFis;
         const int NumPerGroup = 5;
         FisPositionPass() : ModulePass(ID) {}
 
