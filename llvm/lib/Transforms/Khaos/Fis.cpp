@@ -42,7 +42,6 @@ namespace {
     struct Fis : public ModulePass {
         static char ID;
         const string KhaosName = KHAOSNAME_FIS;
-        Json::Value root;  //record transform statistics in this json value
 
         Fis() : ModulePass(ID){
             initializeFisPass(*PassRegistry::getPassRegistry());
@@ -267,73 +266,27 @@ bool Fis::extractRegion(SmallVector<BasicBlock*, 8> BBsToExtract,
     SmallVector<StringRef, 32> Block2ExtractNameVec;
     SmallDenseMap<StringRef, SmallSetVector<uint, 8>> BBName2LineNoMap;
     // bool DirectRecursive = false;
-    if (EnableTransformStat)
-    {
-        for (BasicBlock *BB : BBsToExtract)
-        {
-            Block2ExtractNameVec.push_back(BB->getName());
-            SmallSetVector<uint, 8> lineNoSetToExtract;
-            for (Instruction& I : *BB)
-            {
-                if (I.getDebugLoc())
-                {
-                    const DebugLoc &DL = I.getDebugLoc();
-                    unsigned int line = DL.getLine();
-                    if (line > 0) lineNoSetToExtract.insert(line);
-                }
-
-            }
-            BBName2LineNoMap.insert(make_pair(BB->getName(), lineNoSetToExtract));
-        }
-    }
     uint OriginNameLength = 0;
     if (BBsToExtract.size() > 0)
             OriginNameLength = (*BBsToExtract.begin())->getParent()->getName().size();
     Function *ExtractedFunc = KhaosCodeExtractor(BBsToExtract).extractCodeRegion();
     if (!ExtractedFunc)
     {
-        LLVM_DEBUG(outs() << "Failed to extract for group '"
-            << (*BBsToExtract.begin())->getName() << "'\n");
         NumExtractRegionFailed++;
         return Changed;
     }
-
-    LLVM_DEBUG(outs() << "Extracted group '" << (*BBsToExtract.begin())->getName()
-                      << "' in: " << ExtractedFunc->getName() << '\n');
     ExtractedFunc->setCreatedByKhaos(true);
     assert(OriginNameLength > 0 && "how can the name of a function is empty?");
     ExtractedFunc->setOriginNameLength(OriginNameLength);
     if (!ExtractedFunc->hasFnAttribute(Attribute::NoInline))
     {
         if (ExtractedFunc->hasFnAttribute(Attribute::AlwaysInline))
-        {
             ExtractedFunc->removeFnAttr(Attribute::AlwaysInline);
-        }
         ExtractedFunc->addFnAttr(Attribute::NoInline);
     }
     NumBlocksExtracted += BBsToExtract.size();
     NumExtractRegionSucceeded++;
     Changed = true;
-    errs() << "STATISTICS Extracted: " << oldFunctionName << " to " << ExtractedFunc->getName() << " size: " << ExtractedFunc->size() << "\n";
-    if (EnableTransformStat)  //enable transform statistics for pass
-    {
-        StringRef newFuncName = ExtractedFunc->getName(); 
-        for (StringRef &bbName : Block2ExtractNameVec)
-        {
-            if (BBName2LineNoMap.find(bbName) != BBName2LineNoMap.end())
-            {
-                //with -g option, record BB name and line number.
-                for (uint lineNo : BBName2LineNoMap[bbName])
-                    root[KhaosName][oldFunctionName.str()][newFuncName.str()][bbName.str()].append(lineNo);
-            }
-            else
-            {
-                //without -g option, record BB name.
-                root[KhaosName][oldFunctionName.str()][newFuncName.str()].append(bbName.str());
-            }
-        }
-            
-    }
     return Changed;
 }
 
@@ -344,9 +297,7 @@ bool Fis::tryInlineFunction(Function &F)
     bool Changed = false;
     SmallSetVector<CallSite, 16> Calls;
     if (F.isDeclaration() || F.hasFnAttribute(Attribute::NoInline) || F.isCreatedByKhaos() || !isInlineViable(F))
-    {
         return Changed;
-    }
 
     for (User *U : F.users())
         if (auto CS = CallSite(U))
@@ -376,16 +327,12 @@ bool Fis::runOnModule(Module &M) {
             F.isCreatedByKhaos() || F.getName().find("std", 0) != StringRef::npos ||
             F.getName().find("INS_6VectorIdEEE5solveIN") != StringRef::npos) 
             continue;
-        LLVM_DEBUG(printBBFreqency(F));
-        LLVM_DEBUG(outs() << "Fis try to split function: " << F.getName() << "\n");
-        errs() << "STATISTICS Funtion origin info: " << F.getName() << ", " << F.size() << "\n";
         bool splitFlag = splittingFunction(F);
         if (splitFlag)
         {
             splittedFuncs.insert(&F);
             NumSplittedFunction++;
         } 
-        errs() << "STATISTICS After splitting info: " << F.getName() << ", " << F.size() << "\n";
         Changed |= splitFlag;
     }
 
@@ -396,25 +343,10 @@ bool Fis::runOnModule(Module &M) {
             if (F->getBasicBlockList().size() > 20/*10*/) continue;
             bool inlineFlag = tryInlineFunction(*F);
             if (inlineFlag)
-            {
                 NumInlinedFunction++;
-            }
             Changed |= inlineFlag;
         }
     }
-
-    if (EnableTransformStat)
-    {
-        ofstream fd;
-        StringRef suffixName("_trans_stat.json");  //transform statistics
-        Twine fileName = M.getName() + suffixName;
-        fd.open(fileName.str(), ios::out/* | ios::app*/);
-        Json::StyledWriter writer;
-        fd << writer.write(root);
-        fd.flush();
-        fd.close();
-    }
-
     return Changed;
 }
 

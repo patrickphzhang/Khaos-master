@@ -180,7 +180,6 @@ add_llvm_library(LLVMSupport
   Threading.cpp
   Valgrind.cpp
   Watchdog.cpp
-  jsoncpp.cpp
 
   ADDITIONAL_HEADER_DIRS
   Unix

@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Khaos/Utils.h"
-#include "llvm/Transforms/Utils.h"
 #include "llvm/IR/Verifier.h"
 
 #define DEBUG_TYPE "Fus"

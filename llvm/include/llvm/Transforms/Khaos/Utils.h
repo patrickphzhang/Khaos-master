@@ -51,7 +51,6 @@
 #include <fstream>
 #include <cstdlib>
 #include <ctime>
-#include "json/json.h"
 #include <stdio.h>
 #include <sstream>
 #include <list>
@@ -71,7 +70,6 @@ extern cl::opt<bool> EnableFus;
 extern cl::opt<bool> EnableFis;
 extern cl::opt<bool> FissionedFunctionOnly;
 extern cl::opt<bool> OriginFunctionOnly;
-extern cl::opt<bool> EnableTransformStat;
 
 
 #define KHAOSNAME_FUS    "Fus"

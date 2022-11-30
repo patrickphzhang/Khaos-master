@@ -9,7 +9,3 @@ cl::opt<bool> OriginFunctionOnly("ori", cl::init(false), cl::Hidden,
 cl::opt<bool> EnableFis("enable-fis",
 				cl::desc("Enable Fission Pass"),
 				cl::init(false), cl::Hidden);
-cl::opt<bool> EnableTransformStat("enable-transform-stat", 
-                cl::desc("Pass can write their tansform-statistics into a json file"),
-                cl::init(false),
-                cl::Hidden);
