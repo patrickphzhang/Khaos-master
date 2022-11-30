@@ -41,7 +41,6 @@ STATISTIC(NumCallSiteEliminated, "Number of callsite eliminated");
 namespace {
     struct Fis : public ModulePass {
         static char ID;
-        const string KhaosName = KHAOSNAME_FIS;
 
         Fis() : ModulePass(ID){
             initializeFisPass(*PassRegistry::getPassRegistry());

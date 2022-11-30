@@ -143,9 +143,9 @@ void Fus::arrangeArgList(Function *Old, BasicBlock *TrampolineBB, CallSite CS, S
     // 3. merge arg list
     // ctrl bit
     if (IsFirst)
-        NewArgs.push_back(ConstantInt::get(Type::getInt8Ty(*C), 0));
+        NewArgs.push_back(ConstantInt::get(Int8Ty, 0));
     else
-        NewArgs.push_back(ConstantInt::get(Type::getInt8Ty(*C), 1));
+        NewArgs.push_back(ConstantInt::get(Int8Ty, 1));
     NewArgs.append(IntArgs.begin(), IntArgs.end());
     NewArgs.append(FloatArgs.begin(), FloatArgs.end());
     NewArgs.append(VectorArgs.begin(), VectorArgs.end());
@@ -177,7 +177,6 @@ void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
 bool Fus::runOnModule(Module &M) {
     MM = &M;
     C = &M.getContext();
-    VoidTy = Type::getVoidTy(*C);
     Int8Ty = Type::getInt8Ty(*C);
     Int8PtrTy = Type::getInt8PtrTy(*C);
     Int64Ty = Type::getInt64Ty(*C);
@@ -373,7 +372,7 @@ bool Fus::runOnModule(Module &M) {
         // Preparing a condition.
         BasicBlock *CtrlBB = BasicBlock::Create(*C, "CtrlBB", FusionFunction);
         Value *LHS = FusionFunction->getArg(0);
-        Value *RHS = ConstantInt::get(Type::getInt8Ty(*C), 0);
+        Value *RHS = ConstantInt::get(Int8Ty, 0);
         ICmpInst *icmp = new ICmpInst(*CtrlBB, ICmpInst::ICMP_EQ, LHS, RHS);
 
         // Build VMap entries for params, F1's -> Fusion's

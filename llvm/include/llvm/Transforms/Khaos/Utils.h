@@ -65,14 +65,8 @@ namespace llvm {
     extern ModulePass *createFisPositionPass();
 }
 
-// KHAOS
 extern cl::opt<bool> EnableFus;
 extern cl::opt<bool> EnableFis;
 extern cl::opt<bool> FissionedFunctionOnly;
 extern cl::opt<bool> OriginFunctionOnly;
-
-
-#define KHAOSNAME_FUS    "Fus"
-#define KHAOSNAME_OBFUSCATION    "Obfuscation"
-#define KHAOSNAME_FIS   "Fis"
 #endif
