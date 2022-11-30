@@ -21,46 +21,29 @@ namespace {
         static char ID; // Pass identification, replacement for typeid
         const int NumPerGroup = 5;
         FisPositionPass() : ModulePass(ID) {}
-
         bool runOnModule(Module &M) override;
-
         void moveBefore(Function *F_src, Function *F_dest);
         void moveAfter(Function *F_src, Function *F_dest);
         void swap(unsigned int src, unsigned int dest, vector<Function*> &v);
-        void shuffle(Module &M, int NumPerGroup);
-        
     };
-
 }
 
 char FisPositionPass::ID = 0;
 
 bool FisPositionPass::runOnModule(Module &M) {
-	LLVM_DEBUG(outs() << "FisPosition debug!\n");
-    shuffle(M, NumPerGroup);
-
-	return true;
-
-}
-
-void FisPositionPass::shuffle(Module &M, int NumPerGroup) {
     vector<Function*> vFunc;
     for (auto ib = M.begin(), ie = M.end(); ib != ie; ib++) {
         Function *tempF = &(*ib);
         if (tempF->isDeclaration() || tempF->isIntrinsic()) continue;
-        if (tempF->isAbsoluteSymbolRef() || tempF->isExternalLinkage || !EnableFus) {
-            // this function's name can not be changed
-            // lto is needed
-        } else {
-            // rename this function
+        if (!tempF->isAbsoluteSymbolRef() && !tempF->isExternalLinkage && EnableFus)
             tempF->setName("");
-        }
         vFunc.push_back(tempF);
     }
     for (unsigned int i = 0; i < vFunc.size(); i++) {
         unsigned int j = (rand() % (vFunc.size() - i)) % NumPerGroup + i;
         swap(i, j, vFunc);
     }
+	return true;
 }
 
 void FisPositionPass::moveBefore(Function *F_src, Function *F_dest) {
@@ -79,7 +62,6 @@ void FisPositionPass::swap(unsigned int src, unsigned int dest, vector<Function*
     if (src == dest) return;
     Function* F_src = v[src];
     Function* F_dest = v[dest];
-    LLVM_DEBUG(outs() << "swap " << F_src->getName() << " and " << F_dest->getName() << "\n");
     Function* F_dest_sub_1 = v[dest - 1];
     v[src] = F_dest;
     v[dest] = F_src;

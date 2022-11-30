@@ -164,13 +164,12 @@ void Fus::insertTrampolineCall(Function *Old, Function *New, bool IsFirst,
     Type *OldReturnType = Old->getReturnType();
     Value *retVal = nullptr;
     if (!OldReturnType->isVoidTy()) {
-        if (OldReturnType != NewCallInst->getType()) {
-            Instruction::CastOps CastOp = CastInst::getCastOpcode(NewCallInst,
-                                                            false, OldReturnType, false);
-            retVal = CastInst::Create(CastOp, NewCallInst, OldReturnType, "", TrampolineBB);
-        } else
+        if (OldReturnType != NewCallInst->getType())
+            retVal = CastInst::Create(CastInst::getCastOpcode(NewCallInst, false, OldReturnType, false), NewCallInst, OldReturnType, "", TrampolineBB);
+        else
             retVal = NewCallInst;
     }
+        
     ReturnInst::Create(*C, retVal, TrampolineBB);
 }
 
@@ -181,16 +180,15 @@ bool Fus::runOnModule(Module &M) {
     Int8PtrTy = Type::getInt8PtrTy(*C);
     Int64Ty = Type::getInt64Ty(*C);
     C->setDiscardValueNames(false);
-    uint TotalCount = 0;
     // Collect mergeable function.
     SetVector<Function *> IntFuncsToFusion;
     SetVector<Function *> FloatFuncsToFusion;
     SetVector<Function *> FuncsMayPropagate;
     SetVector<Function *> FuncsHasBeenFissioned;
-    for (auto &F : *MM) {
+    for (auto &F : M) {
         if (F.isCreatedByKhaos()) {
             StringRef OriginName = F.getName().substr(0, F.getOriginNameLength());
-            Function *OriginFunction = MM->getFunction(OriginName);
+            Function *OriginFunction = M.getFunction(OriginName);
             if (OriginFunction && !FuncsHasBeenFissioned.count(OriginFunction))
                 FuncsHasBeenFissioned.insert(OriginFunction);
         }
@@ -240,7 +238,6 @@ bool Fus::runOnModule(Module &M) {
             || F.getName().startswith("wc_lines_avx2") 
             || F.getName().startswith("__warn_memset_zero_len"))
             continue;
-        TotalCount++;
         if (FuncsMayPropagate.count(&F))
             continue;
         bool MayVarArg = false;
@@ -286,7 +283,6 @@ bool Fus::runOnModule(Module &M) {
         }
     }
     
-    uint MergeCount = 0;
     std::map<uint, uint> ArgSizeCount;
     std::map<uint, uint> FusionArgSizeCount;
     while (FloatFuncsToFusion.size() >= 2 || IntFuncsToFusion.size() >= 2) {
@@ -297,9 +293,6 @@ bool Fus::runOnModule(Module &M) {
             if (F1 == nullptr || F2 == nullptr) 
                 continue;
         }
-        MergeCount++;
-        // !!! do not delete this output util everything is ok
-        // errs() << "merging " << F1->getName() << " and " << F2->getName() << "\n";
         if (ArgSizeCount.count(F1->arg_size()))
             ArgSizeCount[F1->arg_size()]++;
         else
@@ -314,14 +307,13 @@ bool Fus::runOnModule(Module &M) {
         FloatParamTypes.clear();
         F1VectorParamTypes.clear();
         F2VectorParamTypes.clear();
-        SmallVector<string, 8> ParamNames;
+        // SmallVector<string, 8> ParamNames;
         // Add the control parameter.
         FusionParamTypes.push_back(Int8Ty);
-        ParamNames.push_back("fusCtrl");
+        // ParamNames.push_back("fusCtrl");
 
         // Get the parameters' type.
-        SmallVector<Type *, 8> F1IntParamTypes, F1FloatParamTypes,
-                               F2IntParamTypes, F2FloatParamTypes;
+        SmallVector<Type *, 8> F1IntParamTypes, F1FloatParamTypes, F2IntParamTypes, F2FloatParamTypes;
         collectFunctionParams(F1, F1IntParamTypes, F1FloatParamTypes, F1VectorParamTypes, VMap);
         collectFunctionParams(F2, F2IntParamTypes, F2FloatParamTypes, F2VectorParamTypes, VMap);
 
@@ -331,19 +323,19 @@ bool Fus::runOnModule(Module &M) {
 
         for (uint i = 0; i < IntParamTypes.size(); i++) {
             FusionParamTypes.push_back(IntParamTypes[i]);
-            ParamNames.push_back(string("argi_").append(itostr(i)));
+            // ParamNames.push_back(string("argi_").append(itostr(i)));
         }
         for (uint i = 0; i < FloatParamTypes.size(); i++) {
             FusionParamTypes.push_back(FloatParamTypes[i]);
-            ParamNames.push_back(string("argf_").append(itostr(i)));
+            // ParamNames.push_back(string("argf_").append(itostr(i)));
         }
         for (uint i = 0; i < F1VectorParamTypes.size(); i++) {
             FusionParamTypes.push_back(F1VectorParamTypes[i]);
-            ParamNames.push_back(string("argv1_").append(itostr(i)));
+            // ParamNames.push_back(string("argv1_").append(itostr(i)));
         }
         for (uint i = 0; i < F2VectorParamTypes.size(); i++) {
             FusionParamTypes.push_back(F2VectorParamTypes[i]);
-            ParamNames.push_back(string("argv2_").append(itostr(i)));
+            // ParamNames.push_back(string("argv2_").append(itostr(i)));
         }
 
         // Construct the Fusion function.
@@ -366,9 +358,9 @@ bool Fus::runOnModule(Module &M) {
         else
             FusionArgSizeCount[FusionFunction->arg_size()] = 1;
         // Set parameters' names for FusionFunction
-        Function::arg_iterator DestI = FusionFunction->arg_begin();
-        for (unsigned i = 0; i < FusionFunction->arg_size(); i++, &*DestI++)
-            DestI->setName(ParamNames[i]);
+        // Function::arg_iterator DestI = FusionFunction->arg_begin();
+        // for (unsigned i = 0; i < FusionFunction->arg_size(); i++, &*DestI++)
+        //     DestI->setName(ParamNames[i]);
         // Preparing a condition.
         BasicBlock *CtrlBB = BasicBlock::Create(*C, "CtrlBB", FusionFunction);
         Value *LHS = FusionFunction->getArg(0);
@@ -853,13 +845,12 @@ void Fus::replaceIndirectUsers(Function *Old, Function *New, bool IsFirst) {
     // check if there exist users of old function
     if (Old->getNumUses() == 0)
         return;
-    Constant * NewConstant = llvm::ConstantExpr::getPtrToInt(New, Int64Ty);
     Constant *ctrlArg; // use the third and the fourth bits. the first bit is used for virtual, the second is used in exception handling
     if (IsFirst)
         ctrlArg = ConstantInt::get(Int64Ty, 0x8);
     else
         ctrlArg = ConstantInt::get(Int64Ty, 0xc);
-    Constant *TagConstant = ConstantExpr::get(Instruction::Add, NewConstant, ctrlArg);
+    Constant *TagConstant = ConstantExpr::get(Instruction::Add, llvm::ConstantExpr::getPtrToInt(New, Int64Ty), ctrlArg);
 
     TagConstant = ConstantExpr::getIntToPtr(TagConstant, Int8PtrTy);
     TagConstant = ConstantExpr::getPointerCast(TagConstant, Old->getType());
@@ -882,7 +873,6 @@ void Fus::ffa(Function *F) {
 
 INITIALIZE_PASS_BEGIN(Fus, "Fus",
                       "Fus Pass", false, false)
-// INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
 INITIALIZE_PASS_END(Fus, "Fus",
                     "Fus Pass", false, false)
 
