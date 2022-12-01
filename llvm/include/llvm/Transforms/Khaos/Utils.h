@@ -67,6 +67,6 @@ namespace llvm {
 
 extern cl::opt<bool> EnableFus;
 extern cl::opt<bool> EnableFis;
-extern cl::opt<bool> FissionedFunctionOnly;
-extern cl::opt<bool> OriginFunctionOnly;
+extern cl::opt<bool> SepOnly;
+extern cl::opt<bool> OriOnly;
 #endif

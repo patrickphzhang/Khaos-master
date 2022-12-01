@@ -722,8 +722,8 @@ public:
     return Arguments + NumArgs;
   }
   // Fus
-  Argument* getArg(unsigned i) const {
-    assert (i < NumArgs && "getArg() out of range!");
+  Argument* arg_at(unsigned i) const {
+    assert (i < NumArgs && "arg_at() out of range!");
     CheckLazyArguments();
     return Arguments + i;
   }
