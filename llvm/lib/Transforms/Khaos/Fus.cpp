@@ -174,8 +174,8 @@ bool Fus::runOnModule(Module &M) {
     SetVector<Function *> FuncsMayPropagate;
     SetVector<Function *> SepFuncs;
     for (auto &F : M) {
-        if (F.isCreatedByKhaos()) {
-            Function *OriginFunction = M.getFunction(F.getName().substr(0, F.getOriginNameLength()));
+        if (F.isKhaosFunction()) {
+            Function *OriginFunction = M.getFunction(F.getName().substr(0, F.getONL()));
             if (OriginFunction && !SepFuncs.count(OriginFunction))
                 SepFuncs.insert(OriginFunction);
         }
@@ -203,66 +203,20 @@ bool Fus::runOnModule(Module &M) {
     for (auto &F : M) {
         if (F.isIntrinsic() || F.isDeclaration() || F.isVarArg())
             continue;
-        if (SepOnly && !F.isCreatedByKhaos())
+        if (SepOnly && !F.isKhaosFunction())
             continue;
-        if (OriOnly && (F.isCreatedByKhaos() || SepFuncs.count(&F)))
+        if (OriOnly && (F.isKhaosFunction() || SepFuncs.count(&F)))
             continue;
-        if (F.getName() == "main" || F.getName() == "_init" || F.getName().find("Fusion") != StringRef::npos
-            || F.getName().find("__cxx_global_var_init") != StringRef::npos
-            || F.getName().find("__gxx_personality_v0") != StringRef::npos
-            || F.getName().find("__clang_call_terminate") != StringRef::npos
-            || F.getName().find("_GLOBAL__sub_I_") != StringRef::npos
-            || F.getName().find("extract_ptrval") != StringRef::npos
-            || F.getName().find("extract_ctrlbit") != StringRef::npos
-            || F.getName().find("extract_ctrlsign") != StringRef::npos
-            || F.getName().find("get_random") != StringRef::npos
-            || F.getName().contains("INS_6VectorIdEEE5solveIN") // TODO: this is a bug, fix it
-            || F.getName().equals("_ZN9EnvirBase15checkTimeLimitsEv")
-            || F.getName().startswith("_ZN9TOmnetApp15checkTimeLimitsEv")
-            || F.getName().equals("ci_compare")
-            || F.getName().startswith("sha_crypt") 
-            || F.getName().startswith("OPENSSL_cpuid_setup")
-            || F.getName().startswith("wc_lines_avx2") 
-            || F.getName().startswith("__warn_memset_zero_len"))
+        if (F.skipKhaos())
             continue;
         if (FuncsMayPropagate.count(&F))
             continue;
-        bool MayVarArg = false;
-        for (auto user : F.users()) {
-            if (Operator *OperatorUser = dyn_cast<Operator>(user)) {
-                Type *TargetType = OperatorUser->getType();
-                if (PointerType *TargetPointerType = dyn_cast<PointerType>(TargetType)) {
-                    if (FunctionType *TargetFunctionType = dyn_cast<FunctionType>(TargetPointerType->getElementType())) {
-                        if (TargetFunctionType->getFunctionNumParams() > F.arg_size()) {
-                            MayVarArg = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        if (MayVarArg)
+        if (F.mayVarArg())
+            continue;
+        if (F.hasStructArg())
             continue;
         if (!F.getReturnType()->isVectorTy() && !F.getReturnType()->isStructTy()) {
-            // errs() << "We do not merge vector type for now\n";
-            // errs() << "We do not merge struct type for now\n";
-            // In source code, when we use struct/vector as an argument, 
-            // it's actually an struct pointer in LLVM IR.
-            // The only case the struct/vector arguments exist is in the fissioned functions.
-            // We decide not to fusion these functions for two reason:
-            // 1. These functions are likely to be inlined in future passes(xxx__eh_resum, see 471 for detail),
-            // if we fusion them, it could not be inline any more. That's harmful to the runtime speed.
-            // 2. If we handled the struct arguments, we need insert a load at the caller and a load at callee,
-            // That may also slow down the runtime speed.
-            bool StructArg = false;
-            for (auto &Argi : F.args()) {
-                if (Argi.getType()->isStructTy()) {
-                    StructArg = true;
-                    break;
-                }
-            }
-            if (StructArg)
-                continue;
+            
             if (F.getReturnType()->isFloatingPointTy()) 
                 FloatCandidates.insert(&F);
             else
@@ -419,7 +373,7 @@ bool Fus::runOnModule(Module &M) {
         if (Fused->getAlignment() < 16)
             Fused->setAlignment(16);
         Fused->setCallingConv(min(First->getCallingConv(), Second->getCallingConv()));
-        Fused->setCreatedByKhaos(true);
+        Fused->setKhaosFunction(true);
         Fused->setDSOLocal(true);
         
         if (!SepOnly) {
@@ -528,8 +482,8 @@ pair<Function *, Function *> Fus::pick(SetVector<Function *> &mergeableFunctions
     // normal path
     do {
         secondF = mergeableFunctions[idx];
-        StringRef FirstOriginName = firstF->getOriginNameLength() > 0 ? firstF->getName().substr(0, firstF->getOriginNameLength()) : firstF->getName();
-        StringRef SecondOriginName = secondF->getOriginNameLength() > 0 ? secondF->getName().substr(0, secondF->getOriginNameLength()) : secondF->getName();
+        StringRef FirstOriginName = firstF->getONL() > 0 ? firstF->getName().substr(0, firstF->getONL()) : firstF->getName();
+        StringRef SecondOriginName = secondF->getONL() > 0 ? secondF->getName().substr(0, secondF->getONL()) : secondF->getName();
         if (FirstOriginName == SecondOriginName) {
             secondF = nullptr;
             idx = (idx+1) % size;

@@ -32,6 +32,7 @@
 #include "llvm/IR/OperandTraits.h"
 #include "llvm/IR/SymbolTableListTraits.h"
 #include "llvm/IR/Value.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include <cassert>
@@ -69,8 +70,8 @@ public:
 
 private:
   // Khaos
-  bool CreatedByKhaos = false;
-  uint OriginNameLength = 0;
+  bool KhaosFunction = false;
+  uint ONL = 0;
   // Important things that make up a function!
   BasicBlockListType BasicBlocks;         ///< The basic blocks
   mutable Argument *Arguments = nullptr;  ///< The formal arguments
@@ -109,14 +110,54 @@ public:
   }
 
   // Khaos
-  bool isCreatedByKhaos() const { return CreatedByKhaos; }
+  bool isKhaosFunction() const { return KhaosFunction; }
 
-  void setCreatedByKhaos(bool CP) { CreatedByKhaos = CP; }
+  void setKhaosFunction(bool val) { KhaosFunction = val; }
 
-  uint getOriginNameLength() const { return OriginNameLength; }
+  uint getONL() const { return ONL; }
   
-  void setOriginNameLength(uint Length) { OriginNameLength = Length; }
+  void setONL(uint Length) { ONL = Length; }
 
+  bool skipKhaos() {
+    if (getName() == "main" || getName() == "_init" || getName().find("Fusion") != StringRef::npos
+        || getName().find("__cxx_global_var_init") != StringRef::npos
+        || getName().find("__gxx_personality_v0") != StringRef::npos
+        || getName().find("__clang_call_terminate") != StringRef::npos
+        || getName().find("_GLOBAL__sub_I_") != StringRef::npos
+        || getName().find("extract_ptrval") != StringRef::npos
+        || getName().find("extract_ctrlbit") != StringRef::npos
+        || getName().find("extract_ctrlsign") != StringRef::npos
+        || getName().find("get_random") != StringRef::npos
+        || getName().contains("INS_6VectorIdEEE5solveIN") // TODO: this is a bug, fix it
+        || getName().equals("_ZN9EnvirBase15checkTimeLimitsEv")
+        || getName().startswith("_ZN9TOmnetApp15checkTimeLimitsEv")
+        || getName().equals("ci_compare")
+        || getName().startswith("sha_crypt") 
+        || getName().startswith("OPENSSL_cpuid_setup")
+        || getName().startswith("wc_lines_avx2") 
+        || getName().startswith("__warn_memset_zero_len"))
+      return true;
+    return false;
+  }
+
+  bool hasStructArg() {
+    for (auto &Argi : args())
+      if (Argi.getType()->isStructTy())
+        return true;
+    return false;
+  }
+  bool mayVarArg() {
+    for (auto user : users()) {
+      if (Operator *OperatorUser = dyn_cast<Operator>(user)) {
+          Type *TargetType = OperatorUser->getType();
+          if (PointerType *TargetPointerType = dyn_cast<PointerType>(TargetType))
+              if (FunctionType *TargetFunctionType = dyn_cast<FunctionType>(TargetPointerType->getElementType()))
+                  if (TargetFunctionType->getFunctionNumParams() > arg_size())
+                      return true;
+      }
+    }
+    return false;
+  }
 private:
   void CheckLazyArguments() const {
     if (hasLazyArguments())

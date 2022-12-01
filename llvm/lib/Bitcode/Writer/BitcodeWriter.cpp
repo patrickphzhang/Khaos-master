@@ -1338,10 +1338,8 @@ void ModuleBitcodeWriter::writeModuleInfo() {
     Vals.push_back(F.getPartition().size());
 
     // Khaos
-    Vals.push_back(F.isCreatedByKhaos());
-    // errs() << "pushing getOriginNameLength\n";
-    Vals.push_back(F.getOriginNameLength());
-    // errs() << Vals.size() << "\n";
+    Vals.push_back(F.isKhaosFunction());
+    Vals.push_back(F.getONL());
     unsigned AbbrevToUse = 0;
     Stream.EmitRecord(bitc::MODULE_CODE_FUNCTION, Vals, AbbrevToUse);
     Vals.clear();

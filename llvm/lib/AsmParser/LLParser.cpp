@@ -5453,7 +5453,7 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
     }
   }
 
-  // Khaos : Warning, unhandled llreader with CreatedByKhaos not parsed.
+  // Khaos : Warning, unhandled llreader with KhaosFunction not parsed.
   if (!Fn)
     Fn = Function::Create(FT, GlobalValue::ExternalLinkage, AddrSpace,
                           FunctionName, M);

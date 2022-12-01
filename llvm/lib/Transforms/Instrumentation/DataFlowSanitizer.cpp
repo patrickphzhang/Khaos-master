@@ -650,9 +650,9 @@ DataFlowSanitizer::buildWrapperFunction(Function *F, StringRef NewFName,
   Function *NewF = Function::Create(NewFT, NewFLink, F->getAddressSpace(),
                                     NewFName, F->getParent());
   NewF->copyAttributesFrom(F);
-  // Khaos : Recover from bc with CreatedByKhaos passed correctly, modified by zk.
-  NewF->setCreatedByKhaos(F->isCreatedByKhaos());
-  NewF->setOriginNameLength(F->getOriginNameLength());
+  // Khaos : Recover from bc with KhaosFunction passed correctly, modified by zk.
+  NewF->setKhaosFunction(F->isKhaosFunction());
+  NewF->setONL(F->getONL());
   NewF->removeAttributes(
       AttributeList::ReturnIndex,
       AttributeFuncs::typeIncompatible(NewFT->getReturnType()));
@@ -843,9 +843,9 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
         Function *NewF = Function::Create(NewFT, F.getLinkage(),
                                           F.getAddressSpace(), "", &M);
         NewF->copyAttributesFrom(&F);
-        // Khaos : Recover from bc with CreatedByKhaos passed correctly, modified by zk.
-        NewF->setCreatedByKhaos(F.isCreatedByKhaos());
-        NewF->setOriginNameLength(F.getOriginNameLength());
+        // Khaos : Recover from bc with KhaosFunction passed correctly, modified by zk.
+        NewF->setKhaosFunction(F.isKhaosFunction());
+        NewF->setONL(F.getONL());
         NewF->removeAttributes(
             AttributeList::ReturnIndex,
             AttributeFuncs::typeIncompatible(NewFT->getReturnType()));

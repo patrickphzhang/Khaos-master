@@ -165,9 +165,9 @@ bool DeadArgumentEliminationPass::DeleteDeadVarargs(Function &Fn) {
   // Create the new function body and insert it into the module...
   Function *NF = Function::Create(NFTy, Fn.getLinkage(), Fn.getAddressSpace());
   NF->copyAttributesFrom(&Fn);
-  // Khaos : Recover from bc with CreatedByKhaos passed correctly, modified by zk.
-  NF->setCreatedByKhaos(Fn.isCreatedByKhaos());
-  NF->setOriginNameLength(Fn.getOriginNameLength());
+  // Khaos : Recover from bc with KhaosFunction passed correctly, modified by zk.
+  NF->setKhaosFunction(Fn.isKhaosFunction());
+  NF->setONL(Fn.getONL());
   NF->setComdat(Fn.getComdat());
   Fn.getParent()->getFunctionList().insert(Fn.getIterator(), NF);
   NF->takeName(&Fn);
@@ -866,9 +866,9 @@ bool DeadArgumentEliminationPass::RemoveDeadStuffFromFunction(Function *F) {
 
   // Create the new function body and insert it into the module...
   Function *NF = Function::Create(NFTy, F->getLinkage(), F->getAddressSpace());
-  // Khaos : Recover from bc with CreatedByKhaos passed correctly, modified by zk.
-  NF->setCreatedByKhaos(F->isCreatedByKhaos());
-  NF->setOriginNameLength(F->getOriginNameLength());
+  // Khaos : Recover from bc with KhaosFunction passed correctly, modified by zk.
+  NF->setKhaosFunction(F->isKhaosFunction());
+  NF->setONL(F->getONL());
   NF->copyAttributesFrom(F);
   NF->setComdat(F->getComdat());
   NF->setAttributes(NewPAL);

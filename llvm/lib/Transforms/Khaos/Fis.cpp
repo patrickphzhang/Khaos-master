@@ -265,18 +265,18 @@ bool Fis::extractRegion(SmallVector<BasicBlock*, 8> BBsToExtract,
     SmallVector<StringRef, 32> Block2ExtractNameVec;
     SmallDenseMap<StringRef, SmallSetVector<uint, 8>> BBName2LineNoMap;
     // bool DirectRecursive = false;
-    uint OriginNameLength = 0;
+    uint ONL = 0;
     if (BBsToExtract.size() > 0)
-            OriginNameLength = (*BBsToExtract.begin())->getParent()->getName().size();
+            ONL = (*BBsToExtract.begin())->getParent()->getName().size();
     Function *ExtractedFunc = KhaosCodeExtractor(BBsToExtract).extractCodeRegion();
     if (!ExtractedFunc)
     {
         NumExtractRegionFailed++;
         return Changed;
     }
-    ExtractedFunc->setCreatedByKhaos(true);
-    assert(OriginNameLength > 0 && "how can the name of a function is empty?");
-    ExtractedFunc->setOriginNameLength(OriginNameLength);
+    ExtractedFunc->setKhaosFunction(true);
+    assert(ONL > 0 && "how can the name of a function is empty?");
+    ExtractedFunc->setONL(ONL);
     if (!ExtractedFunc->hasFnAttribute(Attribute::NoInline))
     {
         if (ExtractedFunc->hasFnAttribute(Attribute::AlwaysInline))
@@ -295,7 +295,7 @@ bool Fis::tryInlineFunction(Function &F)
 {
     bool Changed = false;
     SmallSetVector<CallSite, 16> Calls;
-    if (F.isDeclaration() || F.hasFnAttribute(Attribute::NoInline) || F.isCreatedByKhaos() || !isInlineViable(F))
+    if (F.isDeclaration() || F.hasFnAttribute(Attribute::NoInline) || F.isKhaosFunction() || !isInlineViable(F))
         return Changed;
 
     for (User *U : F.users())
@@ -323,7 +323,7 @@ bool Fis::runOnModule(Module &M) {
         //skip LLVM Intrinsic functions, function declarations, empty functions,
         //functions created by Khaos, std functions
 		if (F.isIntrinsic() || F.isDeclaration() || F.empty() || F.hasOptNone() ||
-            F.isCreatedByKhaos() || F.getName().find("std", 0) != StringRef::npos ||
+            F.isKhaosFunction() || F.getName().find("std", 0) != StringRef::npos ||
             F.getName().find("INS_6VectorIdEEE5solveIN") != StringRef::npos) 
             continue;
         bool splitFlag = splittingFunction(F);

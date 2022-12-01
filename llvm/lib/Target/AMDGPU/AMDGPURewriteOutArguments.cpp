@@ -364,9 +364,9 @@ bool AMDGPURewriteOutArguments::runOnFunction(Function &F) {
                                        F.getName() + ".body");
   F.getParent()->getFunctionList().insert(F.getIterator(), NewFunc);
   NewFunc->copyAttributesFrom(&F);
-  // Khaos : Recover from bc with CreatedByKhaos passed correctly, modified by zk.
-  NewFunc->setCreatedByKhaos(F.isCreatedByKhaos());
-  NewFunc->setOrginNameLength(F.getOriginNameLength());
+  // Khaos : Recover from bc with KhaosFunction passed correctly, modified by zk.
+  NewFunc->setKhaosFunction(F.isKhaosFunction());
+  NewFunc->setOrginNameLength(F.getONL());
   NewFunc->setComdat(F.getComdat());
 
   // We want to preserve the function and param attributes, but need to strip

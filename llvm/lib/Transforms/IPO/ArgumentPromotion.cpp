@@ -218,9 +218,9 @@ doPromotion(Function *F, SmallPtrSetImpl<Argument *> &ArgsToPromote,
   Function *NF = Function::Create(NFTy, F->getLinkage(), F->getAddressSpace(),
                                   F->getName());
   NF->copyAttributesFrom(F);
-  // Khaos : Recover from bc with CreatedByKhaos passed correctly, modified by zk.
-  NF->setCreatedByKhaos(F->isCreatedByKhaos());
-  NF->setOriginNameLength(F->getOriginNameLength());
+  // Khaos : Recover from bc with KhaosFunction passed correctly, modified by zk.
+  NF->setKhaosFunction(F->isKhaosFunction());
+  NF->setONL(F->getONL());
 
   // Patch the pointer to LLVM function in debug info descriptor.
   NF->setSubprogram(F->getSubprogram());

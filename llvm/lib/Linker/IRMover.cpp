@@ -657,9 +657,9 @@ Function *IRLinker::copyFunctionProto(const Function *SF) {
                        GlobalValue::ExternalLinkage, SF->getName(), &DstM);
   F->copyAttributesFrom(SF);
   F->setAttributes(mapAttributeTypes(F->getContext(), F->getAttributes()));
-  // Khaos : Recover from bc with CreatedByKhaos passed correctly, modified by zk.
-  F->setCreatedByKhaos(SF->isCreatedByKhaos());
-  F->setOriginNameLength(SF->getOriginNameLength());
+  // Khaos : Recover from bc with KhaosFunction passed correctly, modified by zk.
+  F->setKhaosFunction(SF->isKhaosFunction());
+  F->setONL(SF->getONL());
   return F;
 }
 

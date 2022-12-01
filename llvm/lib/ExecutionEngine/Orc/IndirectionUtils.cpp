@@ -286,9 +286,9 @@ Function* cloneFunctionDecl(Module &Dst, const Function &F,
     Function::Create(cast<FunctionType>(F.getValueType()),
                      F.getLinkage(), F.getName(), &Dst);
   NewF->copyAttributesFrom(&F);
-  // Khaos : Recover from bc with CreatedByKhaos passed correctly, modified by zk.
-  NewF->setCreatedByKhaos(F.isCreatedByKhaos());
-  NewF->setOriginNameLength(F.getOriginNameLength());
+  // Khaos : Recover from bc with KhaosFunction passed correctly, modified by zk.
+  NewF->setKhaosFunction(F.isKhaosFunction());
+  NewF->setONL(F.getONL());
 
   if (VMap) {
     (*VMap)[&F] = NewF;

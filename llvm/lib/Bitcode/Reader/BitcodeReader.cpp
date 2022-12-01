@@ -3229,10 +3229,8 @@ Error BitcodeReader::parseFunctionRecord(ArrayRef<uint64_t> Record) {
   Func->setAttributes(getAttributes(Record[4]));
 
   // Khaos
-  Func->setCreatedByKhaos(Record[19]);
-  // errs() << "reading OriginNameLength\n";
-  // errs() << "Record.size(): " << Record.size() << "\n";
-  Func->setOriginNameLength(Record[20]);
+  Func->setKhaosFunction(Record[19]);
+  Func->setONL(Record[20]);
   // Upgrade any old-style byval without a type by propagating the argument's
   // pointee type. There should be no opaque pointers where the byval type is
   // implicit.
