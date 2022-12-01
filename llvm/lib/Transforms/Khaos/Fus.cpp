@@ -499,7 +499,7 @@ BasicBlock *Fus::travelBody(Function *start, Function *end, ValueToValueMapTy &V
     CloneFunctionInto(end, start, V2V, true, Returns, "", nullptr);
     BasicBlock *retBlock = nullptr;
     // correct return inst
-    SmallVector<Instruction *, 4> InstsToKill;
+    SmallVector<Instruction *, 4> DyingInsts;
     Type * DestReturnType = end->getReturnType();
 
     if (!DestReturnType->isVoidTy()) {
@@ -522,18 +522,17 @@ BasicBlock *Fus::travelBody(Function *start, Function *end, ValueToValueMapTy &V
                                 NewRetValue = CastInst::Create(CastInst::getCastOpcode(RetValue, false, DestReturnType, false), RetValue, DestReturnType, "", RI);
                             }
                             ReturnInst::Create(*GlobalC, NewRetValue, RI);
-                            InstsToKill.push_back(RI);
+                            DyingInsts.push_back(RI);
                         }
                     } else {
-                        // return void -> return null
                         ReturnInst::Create(*GlobalC, Constant::getNullValue(DestReturnType), RI);
-                        InstsToKill.push_back(RI);
+                        DyingInsts.push_back(RI);
                     }
                 }
             }
         }
         // Remove origin return.
-        for (auto *I : InstsToKill)
+        for (auto *I : DyingInsts)
             I->eraseFromParent();
     }
 
@@ -550,21 +549,21 @@ BasicBlock *Fus::travelBody(Function *start, Function *end, ValueToValueMapTy &V
 
 void Fus::substituteAlias(Function *Dead) {
     // check if Dead's users contain GlobalAlias, if true, replace it with old and delete it.
-    SmallVector<GlobalAlias *, 4> GlobalAliasToKill;
+    SmallVector<GlobalAlias *, 4> DyingAlias;
     for (auto user : Dead->users()) {
         // direct use
         if (GlobalAlias *GA = dyn_cast<GlobalAlias>(user)) {
             GA->replaceAllUsesWith(Dead);
-            GlobalAliasToKill.push_back(GA);
+            DyingAlias.push_back(GA);
         }
     }
-    for (auto toKill : GlobalAliasToKill) {
+    for (auto toKill : DyingAlias) {
         toKill->dropAllReferences();
         toKill->eraseFromParent();
     }
     // indirect aliase
     SmallVector<GlobalAlias *, 4> IndirectGlobalAlias;
-    GlobalAliasToKill.clear();
+    DyingAlias.clear();
     for (Module::alias_iterator ai = GlobalM->alias_begin(), ae = GlobalM->alias_end(); ai != ae; ai++) {
         GlobalAlias *GA = &*ai;
         Constant *aliasee = GA->getAliasee();
@@ -572,12 +571,12 @@ void Fus::substituteAlias(Function *Dead) {
             if(BitCastOperator * BO = dyn_cast<BitCastOperator>(aliasee)) {
                 if(BO->getOperand(0) == Dead) {
                     GA->replaceAllUsesWith(aliasee);
-                    GlobalAliasToKill.push_back(GA);
+                    DyingAlias.push_back(GA);
                 }
             }            
         }
     }
-    for (auto toKill : GlobalAliasToKill) {
+    for (auto toKill : DyingAlias) {
         toKill->dropAllReferences();
         toKill->eraseFromParent();
     }
