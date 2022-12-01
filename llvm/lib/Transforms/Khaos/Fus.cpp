@@ -41,7 +41,6 @@ namespace {
         void ffa(Function *F);
         void recordCaller(Function *Dead, std::vector<CallBase *> &Callers);
         void recordPointers(CallBase *CBInst, SetVector<Function *> &UsedFunctions);
-        uint intArgCount(Function *F);
         Value *digValue(Value * value);
         void arrangeArgs(Function *Dead, BasicBlock *Trampoline, CallSite CS, SmallVector<Value*, 4> &NewArgs, bool Left);
         void patchTrampoline(Function *Dead, Function *Live, bool Left, ValueToValueMapTy &V2V);
@@ -106,8 +105,7 @@ void Fus::arrangeArgs(Function *Dead, BasicBlock *Trampoline, CallSite CS, Small
         } else {
             if (ArgiType != IntTypes[intIndex]) {
                 // add a bit cast to argi
-                Instruction::CastOps CastOp = CastInst::getCastOpcode(Argi,
-                                                                false, IntTypes[intIndex], false);
+                Instruction::CastOps CastOp = CastInst::getCastOpcode(Argi, false, IntTypes[intIndex], false);
                 if (Dead)
                     BitCasti = CastInst::Create(CastOp, Argi, IntTypes[intIndex], "", Trampoline);
                 else
@@ -140,9 +138,7 @@ void Fus::arrangeArgs(Function *Dead, BasicBlock *Trampoline, CallSite CS, Small
     NewArgs.append(VectorArgs.begin(), VectorArgs.end());
 }
 
-void Fus::patchTrampoline(Function *Dead, Function *Live, bool Left,
-                                                ValueToValueMapTy &V2V) {
-    assert(Dead->size() == 0 && "What happened? We have already clean the body of Dead.");
+void Fus::patchTrampoline(Function *Dead, Function *Live, bool Left, ValueToValueMapTy &V2V) {
     BasicBlock *Trampoline = BasicBlock::Create(*GlobalC, Dead->getName() + "_trampoline", Dead);
     SmallVector<Value*, 4> NewArgs;
     CallSite CS;
@@ -171,7 +167,7 @@ bool Fus::runOnModule(Module &M) {
     // Collect mergeable function.
     SetVector<Function *> IntCandidates;
     SetVector<Function *> FloatCandidates;
-    SetVector<Function *> FuncsMayPropagate;
+    SetVector<Function *> FuncsMayCrossModule;
     SetVector<Function *> SepFuncs;
     for (auto &F : M) {
         if (F.isKhaosFunction()) {
@@ -184,7 +180,7 @@ bool Fus::runOnModule(Module &M) {
                 if (CallBase *CBInst = dyn_cast<CallBase>(&I)) {
                     Function * CalleeFunc = CBInst->getCalledFunction();
                     if (CalleeFunc && CalleeFunc->isDeclaration())
-                        recordPointers(CBInst, FuncsMayPropagate);
+                        recordPointers(CBInst, FuncsMayCrossModule);
                     Value * Callee = digValue(CBInst->getCalledValue());
                     if (Function * CalleeFunc = dyn_cast<Function>(Callee)) {
                         if (CallerCalleeMap.find(&F) != CallerCalleeMap.end()) {
@@ -201,31 +197,21 @@ bool Fus::runOnModule(Module &M) {
         }
     }
     for (auto &F : M) {
-        if (F.isIntrinsic() || F.isDeclaration() || F.isVarArg())
+        if (F.isIntrinsic() || F.isDeclaration() || F.isVarArg() || F.mayVarArg() || F.skipKhaos() || F.hasStructArg())
             continue;
         if (SepOnly && !F.isKhaosFunction())
             continue;
         if (OriOnly && (F.isKhaosFunction() || SepFuncs.count(&F)))
             continue;
-        if (F.skipKhaos())
+        if (FuncsMayCrossModule.count(&F))
             continue;
-        if (FuncsMayPropagate.count(&F))
-            continue;
-        if (F.mayVarArg())
-            continue;
-        if (F.hasStructArg())
-            continue;
-        if (!F.getReturnType()->isVectorTy() && !F.getReturnType()->isStructTy()) {
-            
+        if (!F.getReturnType()->isVectorTy() && !F.getReturnType()->isStructTy())
             if (F.getReturnType()->isFloatingPointTy()) 
                 FloatCandidates.insert(&F);
             else
                 IntCandidates.insert(&F);
-        }
     }
     
-    std::map<uint, uint> ArgSizeCount;
-    std::map<uint, uint> FusedArgSizeCount;
     while (FloatCandidates.size() >= 2 || IntCandidates.size() >= 2) {
         // Random choose two functions to merge.
         tie(First, Second) = pick(IntCandidates);
@@ -234,22 +220,12 @@ bool Fus::runOnModule(Module &M) {
             if (First == nullptr || Second == nullptr) 
                 continue;
         }
-        if (ArgSizeCount.count(First->arg_size()))
-            ArgSizeCount[First->arg_size()]++;
-        else
-            ArgSizeCount[First->arg_size()] = 1;
-        if (ArgSizeCount.count(Second->arg_size()))
-            ArgSizeCount[Second->arg_size()]++;
-        else
-            ArgSizeCount[Second->arg_size()] = 1;
         ValueToValueMapTy V2V;
         FusedParamTypes.clear();
         IntTypes.clear();
         FloatTypes.clear();
         FirstVectorTypes.clear();
         SecondVectorTypes.clear();
-        // SmallVector<string, 8> ParamNames;
-        // Add the control parameter.
         FusedParamTypes.push_back(GlobalI8);
 
         // Get the parameters' type.
@@ -281,14 +257,9 @@ bool Fus::runOnModule(Module &M) {
             if (!FusedReturnType)
                 FusedReturnType = GlobalI64;
         }
-        FunctionType *funcType = FunctionType::get(FusedReturnType, FusedParamTypes, false);
-        Fused = Function::Create(funcType, GlobalValue::InternalLinkage, First->getAddressSpace(),
+        Fused = Function::Create(FunctionType::get(FusedReturnType, FusedParamTypes, false), GlobalValue::InternalLinkage, First->getAddressSpace(),
                                         First->getName() + Second->getName() + "Fusion", GlobalM);
         Fused->setDSOLocal(true);
-        if (FusedArgSizeCount.count(Fused->arg_size()))
-            FusedArgSizeCount[Fused->arg_size()]++;
-        else
-            FusedArgSizeCount[Fused->arg_size()] = 1;
         // Preparing a condition.
         BasicBlock *CtrlBB = BasicBlock::Create(*GlobalC, "CtrlBB", Fused);
         ICmpInst *icmp = new ICmpInst(*CtrlBB, ICmpInst::ICMP_EQ, Fused->arg_at(0), ConstantInt::get(GlobalI8, 0));
@@ -304,29 +275,21 @@ bool Fus::runOnModule(Module &M) {
         for (uint i = 0, indexInt = 1, indexFloat = IntTypes.size() + 1, indexVector = IntTypes.size() + FloatTypes.size() + 1; i < First->arg_size(); i++) {
             Argi = First->arg_at(i);
             if (Argi->getType()->isFloatingPointTy()) {
-                if (FusedParamTypes[indexFloat] != Argi->getType()) {
-                    // We meet a float type param, add a cast for float
-                    Instruction::CastOps CastOp = CastInst::getCastOpcode(Fused->arg_at(indexFloat),
-                                                                        false, Argi->getType(), false);
-                    Casti = CastInst::Create(CastOp, Fused->arg_at(indexFloat),
+                if (FusedParamTypes[indexFloat] != Argi->getType())
+                    Casti = CastInst::Create(CastInst::getCastOpcode(Fused->arg_at(indexFloat), false, Argi->getType(), false), Fused->arg_at(indexFloat),
                                             Argi->getType(), "", CtrlBB);
-                } else
+                else
                     Casti = Fused->arg_at(indexFloat);
                 indexFloat++;
-            }
-            else if (Argi->getType()->isVectorTy()) {
+            } else if (Argi->getType()->isVectorTy()) {
                 Casti = Fused->arg_at(indexVector);
                 indexVector++;
-            }
-            else {
-                if (FusedParamTypes[indexInt] != Argi->getType()){
-                    Instruction::CastOps CastOp = CastInst::getCastOpcode(Fused->arg_at(indexInt),
-                                                                        false, Argi->getType(), false);
-                    Casti = CastInst::Create(CastOp, Fused->arg_at(indexInt),
+            } else {
+                if (FusedParamTypes[indexInt] != Argi->getType())
+                    Casti = CastInst::Create(CastInst::getCastOpcode(Fused->arg_at(indexInt), false, Argi->getType(), false), Fused->arg_at(indexInt),
                                             Argi->getType(), "", CtrlBB);
-                } else {
+                else
                     Casti = Fused->arg_at(indexInt);
-                }
                 indexInt++;
             }
             V2V[Argi] = Casti;
@@ -335,29 +298,20 @@ bool Fus::runOnModule(Module &M) {
         for (uint i = 0, indexInt = 1, indexFloat = IntTypes.size() + 1, indexVector = IntTypes.size() + FloatTypes.size() + FirstVectorTypes.size() + 1; i < Second->arg_size(); i++) {
             Argi = Second->arg_at(i);
             if (Argi->getType()->isFloatingPointTy()) {
-                if (FusedParamTypes[indexFloat] != Argi->getType()) {
-                    // We meet a float type param, add an entry for float
-                    Instruction::CastOps CastOp = CastInst::getCastOpcode(Fused->arg_at(indexFloat),
-                                                                        false, Argi->getType(), false);
-                    Casti = CastInst::Create(CastOp, Fused->arg_at(indexFloat),
+                if (FusedParamTypes[indexFloat] != Argi->getType())
+                    Casti = CastInst::Create(CastInst::getCastOpcode(Fused->arg_at(indexFloat), false, Argi->getType(), false), Fused->arg_at(indexFloat),
                                             Argi->getType(), "", CtrlBB);
-                } else {
+                else
                     Casti = Fused->arg_at(indexFloat);
-                }
                 indexFloat++;
-            }
-            else if (Argi->getType()->isVectorTy()) {
+            } else if (Argi->getType()->isVectorTy()) {
                 Casti = Fused->arg_at(indexVector);
                 indexVector++;
-            }
-            else {
-                if (FusedParamTypes[indexInt] != Argi->getType()){
-                    // We meet a int type param, add an entry for int
-                    Instruction::CastOps CastOp = CastInst::getCastOpcode(Fused->arg_at(indexInt),
-                                                                        false, Argi->getType(), false);
-                    Casti = CastInst::Create(CastOp, Fused->arg_at(indexInt),
+            } else {
+                if (FusedParamTypes[indexInt] != Argi->getType())
+                    Casti = CastInst::Create(CastInst::getCastOpcode(Fused->arg_at(indexInt), false, Argi->getType(), false), Fused->arg_at(indexInt),
                                             Argi->getType(), "", CtrlBB);
-                } else
+                else
                     Casti = Fused->arg_at(indexInt);
                 indexInt++;
             }
@@ -405,34 +359,21 @@ bool Fus::runOnModule(Module &M) {
     return true;
 }
 
-uint Fus::intArgCount(Function *F) {
-    uint IntArgSize = F->arg_size();
-    for (uint i = 0; i < F->arg_size(); i++) {
-        Value *Argi = F->arg_at(i);
-        if (Argi->getType()->isFloatingPointTy())
-            IntArgSize--;
-    }
-    return IntArgSize;
-}
-
 void Fus::recordPointers(CallBase *CBInst, SetVector<Function *> &UsedFunctions) {
     CallSite CS(CBInst);
-    Value* Argi;
-    for (unsigned argIdx = 0; argIdx < CS.arg_size(); argIdx++) {
-        Argi = digValue(CS.getArgument(argIdx));
-        if (Function * func = dyn_cast<Function>(Argi))
+    for (unsigned argIdx = 0; argIdx < CS.arg_size(); argIdx++) 
+        if (Function * func = dyn_cast<Function>(digValue(CS.getArgument(argIdx))))
             UsedFunctions.insert(func);
-    }
 }
 
 pair<Function *, Function *> Fus::pick(SetVector<Function *> &mergeableFunctions) {
-    if (mergeableFunctions.size() == 0)
+    if (!mergeableFunctions.size())
         return make_pair(nullptr, nullptr);
     pair<Function *, Function *> toFuse;
     Function *firstF = mergeableFunctions.front();
     mergeableFunctions.remove(firstF);
     unsigned size = mergeableFunctions.size();
-    if (size == 0)
+    if (!size)
         return make_pair(firstF, nullptr);
     // unsigned idx = rand() % size;
     unsigned idx = 0;
@@ -441,11 +382,11 @@ pair<Function *, Function *> Fus::pick(SetVector<Function *> &mergeableFunctions
     Function *secondF = nullptr;
     if (OriOnly) {
         // first round, choose the second with arg size restriction
-        uint firstArgSize = intArgCount(firstF);
+        uint firstArgSize = firstF->int_arg_size();
         if (firstArgSize && firstArgSize < 6) {
             for (uint i = 0; i < mergeableFunctions.size(); i++) {
                 secondF = mergeableFunctions[i];
-                if (intArgCount(secondF) + firstArgSize < 6) {
+                if (secondF->int_arg_size() + firstArgSize < 6) {
                     SetVector<Function*> *CalleeSet2 = CallerCalleeMap[secondF];
                     if ((CalleeSet1 && !CalleeSet1->empty() && CalleeSet1->count(secondF)) ||
                             (CalleeSet2 && !CalleeSet2->empty() && CalleeSet2->count(firstF))) {
@@ -463,7 +404,7 @@ pair<Function *, Function *> Fus::pick(SetVector<Function *> &mergeableFunctions
         if (firstArgSize > 6) {
             for (uint i = 0; i < mergeableFunctions.size(); i++) {
                 secondF = mergeableFunctions[i];
-                if (intArgCount(secondF) == 0) {
+                if (!secondF->int_arg_size()) {
                     SetVector<Function*> *CalleeSet2 = CallerCalleeMap[secondF];
                     if ((CalleeSet1 && !CalleeSet1->empty() && CalleeSet1->count(secondF)) ||
                             (CalleeSet2 && !CalleeSet2->empty() && CalleeSet2->count(firstF))) {
@@ -552,10 +493,7 @@ void Fus::reductParams(
 
 // 1. Replace return with store in start.
 // 2. Move basicblocks from start to end.
-BasicBlock *Fus::travelBody(Function *start,
-                                                Function *end,
-                                                ValueToValueMapTy &V2V) {
-    const DataLayout &DL = GlobalM->getDataLayout();
+BasicBlock *Fus::travelBody(Function *start, Function *end, ValueToValueMapTy &V2V) {
     SmallVector<ReturnInst*, 8> Returns;
     unsigned oldBBNum = end->size();
     CloneFunctionInto(end, start, V2V, true, Returns, "", nullptr);
@@ -575,17 +513,13 @@ BasicBlock *Fus::travelBody(Function *start,
                             Value * NewRetValue;
                             if (OldReturnType->isVectorTy() || OldReturnType->isAggregateType()) {
                                 // we need to create a pointer to than return value
-                                AllocaInst *Pointer = new AllocaInst(OldReturnType, DL.getAllocaAddrSpace(), "", RI);
+                                AllocaInst *Pointer = new AllocaInst(OldReturnType, GlobalM->getDataLayout().getAllocaAddrSpace(), "", RI);
                                 new StoreInst(RetValue, Pointer, RI);
-                                Instruction::CastOps CastOp = CastInst::getCastOpcode(Pointer,
-                                                                        false, DestReturnType, false);
-                                NewRetValue = CastInst::Create(CastOp, Pointer, DestReturnType, "", RI);
+                                NewRetValue = CastInst::Create(CastInst::getCastOpcode(Pointer, false, DestReturnType, false), Pointer, DestReturnType, "", RI);
                             } else if (DestReturnType->isFloatingPointTy()) {
                                 NewRetValue = TruncInst::CreateFPCast(RetValue, DestReturnType, "", RI);
                             } else {
-                                Instruction::CastOps CastOp = CastInst::getCastOpcode(RetValue,
-                                                                        false, DestReturnType, false);
-                                NewRetValue = CastInst::Create(CastOp, RetValue, DestReturnType, "", RI);
+                                NewRetValue = CastInst::Create(CastInst::getCastOpcode(RetValue, false, DestReturnType, false), RetValue, DestReturnType, "", RI);
                             }
                             ReturnInst::Create(*GlobalC, NewRetValue, RI);
                             InstsToKill.push_back(RI);
@@ -604,7 +538,7 @@ BasicBlock *Fus::travelBody(Function *start,
     }
 
     for (auto FI = end->begin(); FI != end->end(); FI++) {
-        if (oldBBNum == 0) {
+        if (!oldBBNum) {
             retBlock = &*FI;
             break;
         }
@@ -663,8 +597,6 @@ void Fus::substituteCallers(Function *Dead, Function *Live, bool Left) {
         arrangeArgs(EmptyOld, EmptyBB, CS, NewArgs, Left);
         bool noUse = oldFuncRetVoid || I->user_empty();
         ArrayRef<Value *> NewArgsArr(NewArgs);
-        // Whether the origin callbase is a callinst or an invokeinst,
-        // we should replace it with corresponding instruction.
         Type *OldReturnType = Dead->getReturnType();
         Value * target = nullptr;
         if (isa<CallInst>(I)) {
@@ -681,8 +613,7 @@ void Fus::substituteCallers(Function *Dead, Function *Live, bool Left) {
                 I->replaceAllUsesWith(target);
             }
         } else if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
-            InvokeInst *NewInvoke = InvokeInst::Create(Live->getFunctionType(), Live, II->getNormalDest(),
-                                II->getUnwindDest(), NewArgsArr, "", I);
+            InvokeInst *NewInvoke = InvokeInst::Create(Live->getFunctionType(), Live, II->getNormalDest(), II->getUnwindDest(), NewArgsArr, "", I);
             NewInvoke->setCallingConv(Live->getCallingConv());
             target = NewInvoke;
             if (!noUse) {
@@ -724,17 +655,15 @@ void Fus::recordCaller(Function *Dead, std::vector<CallBase *> &Callers) {
                 if (CallBase *CBInst = dyn_cast<CallBase>(&Inst)) {
                     Value * Callee = CBInst->getCalledValue();
                     if (isa<Function>(Callee)) {
-                        if (Callee == Dead) {
+                        if (Callee == Dead)
                             Callers.push_back(CBInst);
-                        }
                     } else if (isa<BitCastOperator>(Callee)){
                         Value *CalledValue = digValue(Callee);
                         if (CalledValue == Dead) {
                             Callers.push_back(CBInst);
                         } else if (Function * CalleeFunc = dyn_cast<Function>(CalledValue)) {
-                            if (CalleeFunc->isDeclaration() && CalleeFunc->getName() == Dead->getName()) {
+                            if (CalleeFunc->isDeclaration() && CalleeFunc->getName() == Dead->getName())
                                 Callers.push_back(CBInst);
-                            }
                         }
                     }
                 }
@@ -745,7 +674,7 @@ void Fus::recordCaller(Function *Dead, std::vector<CallBase *> &Callers) {
 
 void Fus::substitutePointers(Function *Dead, Function *Live, bool Left) {
     // check if there exist users of old function
-    if (Dead->getNumUses() == 0)
+    if (!Dead->getNumUses())
         return;
     Constant *ctrlArg; // use the third and the fourth bits. the first bit is used for virtual, the second is used in exception handling
     if (Left)

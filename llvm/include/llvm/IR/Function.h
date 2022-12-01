@@ -158,6 +158,7 @@ public:
     }
     return false;
   }
+  
 private:
   void CheckLazyArguments() const {
     if (hasLazyArguments())
@@ -781,6 +782,13 @@ public:
   size_t arg_size() const { return NumArgs; }
   bool arg_empty() const { return arg_size() == 0; }
 
+  int int_arg_size() {
+    uint IntArgSize = NumArgs;
+    for (uint i = 0; i < NumArgs; i++)
+        if (arg_at(i)->getType()->isFloatingPointTy())
+            IntArgSize--;
+    return IntArgSize;
+  }
   /// Check whether this function has a personality function.
   bool hasPersonalityFn() const {
     return getSubclassDataFromValue() & (1<<3);
