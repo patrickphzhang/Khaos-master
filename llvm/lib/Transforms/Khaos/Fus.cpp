@@ -456,7 +456,7 @@ void Fus::reductParams(SmallVector<Type *, 8> &FusedTypes, SmallVector<Type *, 8
 
 BasicBlock *Fus::travelBody(Function *start, Function *end, ValueToValueMapTy &V2V) {
     SmallVector<ReturnInst*, 8> Unused;
-    unsigned oldBBNum = end->size();
+    unsigned FSize = end->size();
     CloneFunctionInto(end, start, V2V, true, Unused, "", nullptr);
     BasicBlock *RB = nullptr;
     SmallVector<Instruction *, 4> DyingInsts;
@@ -493,11 +493,11 @@ BasicBlock *Fus::travelBody(Function *start, Function *end, ValueToValueMapTy &V
             I->eraseFromParent();
     }
     for (auto FI = end->begin(); FI != end->end(); FI++) {
-        if (!oldBBNum) {
+        if (!FSize) {
             RB = &*FI;
             break;
         }
-        else oldBBNum--;
+        else FSize--;
     }
     return RB;
 }
@@ -646,10 +646,8 @@ void Fus::ffa(Function *F) {
                 F->removeParamAttr(i, At.getKindAsEnum());
 }
 
-INITIALIZE_PASS_BEGIN(Fus, "Fus",
-                      "Fus Pass", false, false)
-INITIALIZE_PASS_END(Fus, "Fus",
-                    "Fus Pass", false, false)
+INITIALIZE_PASS_BEGIN(Fus, "Fus", "Fus Pass", false, false)
+INITIALIZE_PASS_END(Fus, "Fus", "Fus Pass", false, false)
 
 ModulePass *llvm::createFusPass() {
     return new Fus();
