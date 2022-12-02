@@ -668,7 +668,7 @@ bool PointerType::isLoadableOrStorableType(Type *ElemTy) {
 }
 
 // Khaos
-Type * Type::mergeType(Type * T2) {
+Type * Type::fuse(Type * T2) {
     if (ID == StructTyID || ID == PointerTyID || ID == ArrayTyID || ID == VectorTyID || 
         T2->isStructTy() || T2->isPointerTy()|| T2->isArrayTy() || T2->isVectorTy())
         return nullptr; // which means int64ty

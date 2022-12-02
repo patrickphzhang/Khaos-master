@@ -598,107 +598,102 @@ VersionTuple Module::getSDKVersion() const {
 // Khaos
 // patch indirect calls for fusion
 void Module::patchIndirectCalls() {
-  std::vector<CallBase*> IndirectCalls;
-  for (Function &F : FunctionList)
+  std::vector<CallBase*> ICs;
+  for (auto &F : FunctionList)
     for (auto &BB : F)
       for (auto &I : BB)
         if (CallBase *CB = dyn_cast<CallBase>(&I))
           if (CB->isIndirectCall())
-            IndirectCalls.push_back(CB);
-        
-  unsigned IndirectCallNum = IndirectCalls.size();
-  if (!IndirectCallNum) return;
-  Type *Int8PtrTy = Type::getInt8PtrTy(Context);
-  Type *Int8Ty = Type::getInt8Ty(Context);
-  FunctionType *extractPtrValTy = FunctionType::get(Int8PtrTy, {Int8PtrTy}, false);
-  Function *ExtractPtrVal = cast<Function>(getOrInsertFunction("extract_ptrval", extractPtrValTy).getCallee());
-  FunctionType *extractCtrlTy = FunctionType::get(Int8Ty, {Int8PtrTy}, false);
-  Function *ExtractCtrlBit = cast<Function>(getOrInsertFunction("extract_ctrlbit", extractCtrlTy).getCallee());
-  Function *ExtractCtrlSign = cast<Function>(getOrInsertFunction("extract_ctrlsign", extractCtrlTy).getCallee());
-  for (unsigned i = 0; i < IndirectCallNum; i++) {
-    CallBase *CB = IndirectCalls.at(i);      
-    Value *IndirectFunction = CB->getCalledOperand();      
-    Value *newVal = CastInst::CreatePointerCast(IndirectFunction, Int8PtrTy, "", CB);
-    Value *ctrlSign = CallInst::Create(ExtractCtrlSign, newVal, "", CB);
-    BasicBlock *PredBB = CB->getParent();
-    BasicBlock *OrigCallBB = CB->getParent()->splitBasicBlock(CB);
-    PredBB->getTerminator()->eraseFromParent();
-    BasicBlock *OrigTarBB;
+            ICs.push_back(CB);
+  unsigned ICN = ICs.size();
+  if (!ICN) return;
+  Type *Int8Ptr = Type::getInt8PtrTy(Context);
+  Type *Int8 = Type::getInt8Ty(Context);
+  FunctionType *EPVT = FunctionType::get(Int8Ptr, {Int8Ptr}, false);
+  Function *EPV = cast<Function>(getOrInsertFunction("extract_ptrval", EPVT).getCallee());
+  FunctionType *ECT = FunctionType::get(Int8, {Int8Ptr}, false);
+  Function *ECB = cast<Function>(getOrInsertFunction("extract_ctrlbit", ECT).getCallee());
+  Function *ECS = cast<Function>(getOrInsertFunction("extract_ctrlsign", ECT).getCallee());
+  for (unsigned i = 0; i < ICN; i++) {
+    CallBase *CB = ICs.at(i);      
+    Value *NV = CastInst::CreatePointerCast(CB->getCalledOperand(), Int8Ptr, "", CB);
+    Value *CS = CallInst::Create(ECS, NV, "", CB);
+    BasicBlock *PBB = CB->getParent();
+    BasicBlock *OCBB = CB->getParent()->splitBasicBlock(CB);
+    PBB->getTerminator()->eraseFromParent();
+    BasicBlock *OTBB;
     if (isa<CallInst>(CB))
-        OrigTarBB = OrigCallBB->splitBasicBlock(CB->getNextNode());
+        OTBB = OCBB->splitBasicBlock(CB->getNextNode());
     else if (InvokeInst *II = dyn_cast<InvokeInst>(CB))
-        OrigTarBB = II->getNormalDest();
-    BasicBlock *NewCallBB = BasicBlock::Create(Context, "icall", OrigCallBB->getParent());
-    ICmpInst *icmp = new ICmpInst(*PredBB, ICmpInst::ICMP_EQ, ctrlSign, ConstantInt::getNullValue(Int8Ty), "");
-    BranchInst::Create(OrigCallBB, NewCallBB, icmp, PredBB);
-    BranchInst::Create(OrigTarBB, NewCallBB);
-    Instruction *insPt = NewCallBB->getTerminator();
-    Value *ctrlBit = CallInst::Create(ExtractCtrlBit, newVal, "", insPt);
-    CallInst *ptrVal = CallInst::Create(ExtractPtrVal, newVal, "", insPt);
-    SmallVector<Value*, 4> IntArgs, FloatArgs;
-    SmallVector<Type*, 4> IntArgTypes, FloatArgTypes;
+        OTBB = II->getNormalDest();
+    BasicBlock *NCBB = BasicBlock::Create(Context, "icall", OCBB->getParent());
+    ICmpInst *ICI = new ICmpInst(*PBB, ICmpInst::ICMP_EQ, CS, ConstantInt::getNullValue(Int8), "");
+    BranchInst::Create(OCBB, NCBB, ICI, PBB);
+    BranchInst::Create(OTBB, NCBB);
+    Instruction *IP = NCBB->getTerminator();
+    Value *TCB = CallInst::Create(ECB, NV, "", IP);
+    CallInst *PV = CallInst::Create(EPV, NV, "", IP);
+    SmallVector<Value*, 4> IAs, FAs;
+    SmallVector<Type*, 4> IATs, FATs;
     // 1. old args
-    unsigned argIdx = 0;
+    unsigned AI = 0;
     Value* Argi;
-    Type* ArgiType;
-    // Value *BitCasti;
-    for (argIdx = 0; argIdx < CB->arg_size(); argIdx++) {
-        Argi = CB->getArgOperand(argIdx);
-        ArgiType = Argi->getType();
-        if (ArgiType->isFloatingPointTy()) {
-            FloatArgs.push_back(Argi);
-            FloatArgTypes.push_back(ArgiType);
+    Type* AT;
+    for (AI = 0; AI < CB->arg_size(); AI++) {
+        Argi = CB->getArgOperand(AI);
+        AT = Argi->getType();
+        if (AT->isFloatingPointTy()) {
+            FAs.push_back(Argi);
+            FATs.push_back(AT);
         } else {
-            IntArgs.push_back(Argi);
-            IntArgTypes.push_back(ArgiType);
+            IAs.push_back(Argi);
+            IATs.push_back(AT);
         }
     }
-    SmallVector<Value*, 4> NewArgs;
-    SmallVector<Type*, 4> NewArgTypes;
-    NewArgs.push_back(ctrlBit);
-    NewArgTypes.push_back(ctrlBit->getType());
-    NewArgs.append(IntArgs.begin(), IntArgs.end());
-    NewArgTypes.append(IntArgTypes.begin(), IntArgTypes.end());
-    NewArgs.append(FloatArgs.begin(), FloatArgs.end());
-    NewArgTypes.append(FloatArgTypes.begin(), FloatArgTypes.end());
-    ArrayRef<Type *> NewArgTypesArr(NewArgTypes);
-    Value *ICalleeFunction = CastInst::CreatePointerCast(ptrVal, FunctionType::get(CB->getType(), NewArgTypesArr, false)->getPointerTo(), "", insPt);
-    ArrayRef<Value *> NewArgsArr(NewArgs);
+    SmallVector<Value*, 4> NAs;
+    SmallVector<Type*, 4> NATs;
+    NAs.push_back(TCB);
+    NATs.push_back(TCB->getType());
+    NAs.append(IAs.begin(), IAs.end());
+    NATs.append(IATs.begin(), IATs.end());
+    NAs.append(FAs.begin(), FAs.end());
+    NATs.append(FATs.begin(), FATs.end());
+    ArrayRef<Type *> NATA(NATs);
+    Value *ICalleeFunction = CastInst::CreatePointerCast(PV, FunctionType::get(CB->getType(), NATA, false)->getPointerTo(), "", IP);
+    ArrayRef<Value *> NAA(NAs);
     bool HaveUse = !CB->getType()->isVoidTy() && !CB->user_empty();
     if (isa<CallInst>(CB)) {
-        Value * ICall = CallInst::Create(ICalleeFunction, NewArgsArr, "", insPt);
+        Value * IC = CallInst::Create(ICalleeFunction, NAA, "", IP);
         if (HaveUse) {
-            PHINode *phiForCall = PHINode::Create(CB->getType(), 2, "", &OrigTarBB->front());
-            CB->replaceAllUsesWith(phiForCall);
-            phiForCall->addIncoming(CB, OrigCallBB);
-            phiForCall->addIncoming(ICall, NewCallBB);
+            PHINode *PhiFC = PHINode::Create(CB->getType(), 2, "", &OTBB->front());
+            CB->replaceAllUsesWith(PhiFC);
+            PhiFC->addIncoming(CB, OCBB);
+            PhiFC->addIncoming(IC, NCBB);
         }
     } else if (InvokeInst *II = dyn_cast<InvokeInst>(CB)) {
-        BasicBlock *NormalDest = II->getNormalDest();
-        BasicBlock *UnwindDest = II->getUnwindDest();
-        InvokeInst *NewII = InvokeInst::Create(ICalleeFunction, NormalDest, UnwindDest, NewArgsArr, "", insPt);
+        BasicBlock *ND = II->getNormalDest();
+        BasicBlock *UD = II->getUnwindDest();
+        InvokeInst *NewII = InvokeInst::Create(ICalleeFunction, ND, UD, NAA, "", IP);
         if (HaveUse) {
-            BasicBlock *InvokePhiTrampoline = BasicBlock::Create(Context, "invoke.phi.trampoline", II->getParent()->getParent());
-            PHINode *phiForInvoke = PHINode::Create(CB->getType(), 2, "", InvokePhiTrampoline);
-            II->replaceAllUsesWith(phiForInvoke);
-            phiForInvoke->addIncoming(II, OrigCallBB);
-            phiForInvoke->addIncoming(NewII, NewCallBB);
-            BranchInst::Create(NormalDest, InvokePhiTrampoline);
-            NewII->setNormalDest(InvokePhiTrampoline);
-            II->setNormalDest(InvokePhiTrampoline);          
-            for (auto &PI : NormalDest->phis())
-                PI.replaceIncomingBlockWith(OrigCallBB, InvokePhiTrampoline); 
-            for (auto &PI : UnwindDest->phis())
-                PI.addIncoming(PI.getIncomingValueForBlock(OrigCallBB), NewCallBB);
-            for (auto *U : II->users())
-                Instruction *IU = cast<Instruction>(U);
+            BasicBlock *IPT = BasicBlock::Create(Context, "invoke.phi.trampoline", II->getParent()->getParent());
+            PHINode *PhiFI = PHINode::Create(CB->getType(), 2, "", IPT);
+            II->replaceAllUsesWith(PhiFI);
+            PhiFI->addIncoming(II, OCBB);
+            PhiFI->addIncoming(NewII, NCBB);
+            BranchInst::Create(ND, IPT);
+            NewII->setNormalDest(IPT);
+            II->setNormalDest(IPT);          
+            for (auto &PI : ND->phis())
+                PI.replaceIncomingBlockWith(OCBB, IPT); 
+            for (auto &PI : UD->phis())
+                PI.addIncoming(PI.getIncomingValueForBlock(OCBB), NCBB);
         } else {
-            for (auto &PI : NormalDest->phis())
-                PI.addIncoming(PI.getIncomingValueForBlock(CB->getParent()), NewCallBB);
-            for (auto &PI : UnwindDest->phis())
-                PI.addIncoming(PI.getIncomingValueForBlock(CB->getParent()), NewCallBB);
+            for (auto &PI : ND->phis())
+                PI.addIncoming(PI.getIncomingValueForBlock(CB->getParent()), NCBB);
+            for (auto &PI : UD->phis())
+                PI.addIncoming(PI.getIncomingValueForBlock(CB->getParent()), NCBB);
         }
-        NewCallBB->getTerminator()->eraseFromParent();
+        NCBB->getTerminator()->eraseFromParent();
     }
   }
 }

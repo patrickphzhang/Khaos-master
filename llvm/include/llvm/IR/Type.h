@@ -307,7 +307,7 @@ public:
   }
 
   // Khaos: merge two type
-  Type * mergeType(Type * T2);
+  Type * fuse(Type * T2);
 
   //===--------------------------------------------------------------------===//
   // Type Iteration support.
