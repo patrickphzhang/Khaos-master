@@ -1,5 +1,5 @@
 ninja
-#cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi;compiler-rt;lld;openmp" -DLLVM_TARGETS_TO_BUILD=X86 ../llvm
+#cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi;compiler-rt;lld;openmp" -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_TARGETS_TO_BUILD=X86 ../llvm
 cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi;compiler-rt;lld" -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_BUILD_TYPE=Release ../source/Khaos/llvm/
 vs2019
 cmake -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi;compiler-rt;lld" -G "Visual Studio 16 2019" -DLLVM_TARGETS_TO_BUILD="X86" -A x64 -Thost=x64 ..\llvm -DCMAKE_SYSTEM_VERSION=10.0.16299.0

@@ -30,10 +30,8 @@ static cl::opt<bool> InlineSplittedFunction("inline-splitted-func", cl::init(fal
 		cl::desc("Inline Function After Splitted"));
 
 STATISTIC(NumBlocksExtracted, "Number of basic blocks extracted by Fis");
-STATISTIC(NumTotalBlocks, "Number of module's block");
 STATISTIC(NumExtractRegionFailed, "Number of extracting region failed by Fis");
 STATISTIC(NumExtractRegionSucceeded, "Number of extracting region succeeded by Fis");
-STATISTIC(NumSkippedFunction, "Number of function skipped");
 STATISTIC(NumSplittedFunction, "Number of function splitted");
 STATISTIC(NumInlinedFunction, "Number of function inlined");
 STATISTIC(NumCallSiteEliminated, "Number of callsite eliminated");
@@ -183,73 +181,73 @@ Fis::buildRegionsToExtract_v1(Function &F, BlockFrequencyInfo &BFI, DominatorTre
     return result;
 }
 
-SmallVector<SmallVector<BasicBlock*, 8>, 8>
-Fis::buildRegionsToExtract_v2(Function &F, BlockFrequencyInfo &BFI, DominatorTree &DT)
-{
-    SmallVector<SmallVector<BasicBlock*, 8>, 8> result;    //regions to extract
-    SmallSetVector<BasicBlock *, 4> regionPredBBSet;       //region's PredBB
-    SmallSetVector<BasicBlock *, 32> visitedBBSet;         //all visited BB
-    BlockFrequency hotBBFreqThresold = (uint64_t)BFI.getEntryFreq() * 0.5;
-    LoopInfo LI{DT};
-    SmallSetVector<BasicBlock*, 8> hotBBSet;               //don't extract hotBBs
-    hotBBSet = getHotBBSet(F, hotBBFreqThresold, LI);
-    std::string FuncName = F.getName().str();
-    BasicBlock &EntryBB = F.getEntryBlock();
+// SmallVector<SmallVector<BasicBlock*, 8>, 8>
+// Fis::buildRegionsToExtract_v2(Function &F, BlockFrequencyInfo &BFI, DominatorTree &DT)
+// {
+//     SmallVector<SmallVector<BasicBlock*, 8>, 8> result;    //regions to extract
+//     SmallSetVector<BasicBlock *, 4> regionPredBBSet;       //region's PredBB
+//     SmallSetVector<BasicBlock *, 32> visitedBBSet;         //all visited BB
+//     BlockFrequency hotBBFreqThresold = (uint64_t)BFI.getEntryFreq() * 0.5;
+//     LoopInfo LI{DT};
+//     SmallSetVector<BasicBlock*, 8> hotBBSet;               //don't extract hotBBs
+//     hotBBSet = getHotBBSet(F, hotBBFreqThresold, LI);
+//     std::string FuncName = F.getName().str();
+//     BasicBlock &EntryBB = F.getEntryBlock();
     
     
-    regionPredBBSet.insert(&EntryBB);
-    visitedBBSet.insert(&EntryBB);
-    while (!regionPredBBSet.empty()) {
-        BasicBlock *predBB = regionPredBBSet.pop_back_val();
-        succ_iterator SI = succ_begin(predBB), SE = succ_end(predBB);
-        for (; SI != SE; SI++) {
-            if (!visitedBBSet.insert(*SI)) continue;
-            if (hotBBSet.count(*SI))
-            {
-                regionPredBBSet.insert(*SI);
-                continue;
-            }
-            SmallSetVector<BasicBlock *, 8> regionBBs;
-            BasicBlock *regionEntryBB = *SI;
-            LLVM_DEBUG(outs() << "Region entryBB: " << regionEntryBB->getName() << "\n");
-            regionBBs.insert(regionEntryBB);
-            auto SSI = ++df_begin(regionEntryBB), SSE = df_end(regionEntryBB);
-            while (SSI != SSE) {
-                BasicBlock *SuccBB = *SSI;
-                bool DomFlag = DT.dominates(regionEntryBB, SuccBB);
-                if (!DomFlag) {
-                    regionPredBBSet.insert(*pred_begin(SuccBB));
-                    SSI.skipChildren();
-                    continue;
-                }
-                visitedBBSet.insert(SuccBB);
-                LLVM_DEBUG(outs() << "Region Dominated BB: " << SuccBB->getName() << "\n");
-                regionBBs.insert(SuccBB);
-                ++SSI;
-            }
-            SmallVector<BasicBlock *, 8> tmp(regionBBs.begin(), regionBBs.end());
-            result.push_back(tmp);
-        }
-    }
-    return result;
-}
+//     regionPredBBSet.insert(&EntryBB);
+//     visitedBBSet.insert(&EntryBB);
+//     while (!regionPredBBSet.empty()) {
+//         BasicBlock *predBB = regionPredBBSet.pop_back_val();
+//         succ_iterator SI = succ_begin(predBB), SE = succ_end(predBB);
+//         for (; SI != SE; SI++) {
+//             if (!visitedBBSet.insert(*SI)) continue;
+//             if (hotBBSet.count(*SI))
+//             {
+//                 regionPredBBSet.insert(*SI);
+//                 continue;
+//             }
+//             SmallSetVector<BasicBlock *, 8> regionBBs;
+//             BasicBlock *regionEntryBB = *SI;
+//             LLVM_DEBUG(outs() << "Region entryBB: " << regionEntryBB->getName() << "\n");
+//             regionBBs.insert(regionEntryBB);
+//             auto SSI = ++df_begin(regionEntryBB), SSE = df_end(regionEntryBB);
+//             while (SSI != SSE) {
+//                 BasicBlock *SuccBB = *SSI;
+//                 bool DomFlag = DT.dominates(regionEntryBB, SuccBB);
+//                 if (!DomFlag) {
+//                     regionPredBBSet.insert(*pred_begin(SuccBB));
+//                     SSI.skipChildren();
+//                     continue;
+//                 }
+//                 visitedBBSet.insert(SuccBB);
+//                 LLVM_DEBUG(outs() << "Region Dominated BB: " << SuccBB->getName() << "\n");
+//                 regionBBs.insert(SuccBB);
+//                 ++SSI;
+//             }
+//             SmallVector<BasicBlock *, 8> tmp(regionBBs.begin(), regionBBs.end());
+//             result.push_back(tmp);
+//         }
+//     }
+//     return result;
+// }
 
 //print frequency of BBs in function F
-void Fis::printBBFreqency(Function &F)
-{
-    BlockFrequencyInfo& BFI= getAnalysis<BlockFrequencyInfoWrapperPass>(F).getBFI();
-    outs() << "-------------Block Frequency list( " << F.getName() << "  "
-           << F.getBasicBlockList().size() << " BBs)-------------\n";
-    std::string S;
-    for (BasicBlock &BB : F)
-    {
-        S = llvm::formatv("\t\t{0}\t{1}\n",
-                           fmt_align(BFI.getBlockFreq(&BB).getFrequency(), AlignStyle::Left, 15),
-                           BB.getName());
-        outs() << S;                           
-    }
-    outs() << "\n";
-}
+// void Fis::printBBFreqency(Function &F)
+// {
+//     BlockFrequencyInfo& BFI= getAnalysis<BlockFrequencyInfoWrapperPass>(F).getBFI();
+//     outs() << "-------------Block Frequency list( " << F.getName() << "  "
+//            << F.getBasicBlockList().size() << " BBs)-------------\n";
+//     std::string S;
+//     for (BasicBlock &BB : F)
+//     {
+//         S = llvm::formatv("\t\t{0}\t{1}\n",
+//                            fmt_align(BFI.getBlockFreq(&BB).getFrequency(), AlignStyle::Left, 15),
+//                            BB.getName());
+//         outs() << S;                           
+//     }
+//     outs() << "\n";
+// }
 
 //try to extract a region in a function into a new function.
 //if succeeded, return true;

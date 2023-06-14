@@ -822,6 +822,11 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
       PM.add(createFisPositionPass());
   }
 
+  // Khaos
+  if (EnableHid) {
+      PM.add(createHidPass());
+  }
+
   // Provide AliasAnalysis services for optimizations.
   addInitialAliasAnalysisPasses(PM);
 

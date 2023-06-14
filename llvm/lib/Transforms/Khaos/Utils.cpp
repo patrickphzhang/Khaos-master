@@ -1,5 +1,7 @@
 #include "llvm/Transforms/Khaos/Utils.h"
 
+cl::opt<bool> EnableHid("enable-hid", cl::init(false), cl::Hidden,
+		cl::desc("Enable Hid"));
 cl::opt<bool> EnableFus("enable-fus", cl::init(false), cl::Hidden,
 		cl::desc("Enable Fus"));
 cl::opt<bool> SepOnly("sep", cl::init(false), cl::Hidden,

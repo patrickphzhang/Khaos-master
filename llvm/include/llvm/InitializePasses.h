@@ -20,6 +20,7 @@ class PassRegistry;
 
 // Khaos
 void initializeFusPass(PassRegistry&);
+void initializeHidPass(PassRegistry&);
 void initializeFisPositionPass(PassRegistry&);
 void initializeFisPass(PassRegistry&);
 

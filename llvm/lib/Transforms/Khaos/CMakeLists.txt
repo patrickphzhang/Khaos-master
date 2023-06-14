@@ -4,6 +4,7 @@ add_llvm_library( LLVMKhaosMid
   FisPosition.cpp
   KhaosCodeExtractor.cpp
   Fis.cpp
+  Hid.cpp
 )
 
 add_dependencies(LLVMKhaosMid intrinsics_gen)
