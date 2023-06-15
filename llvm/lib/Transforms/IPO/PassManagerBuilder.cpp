@@ -477,7 +477,9 @@ void PassManagerBuilder::populateModulePassManager(
       if (!EnableFus)
         MPM.add(createFisPositionPass());
     }
-
+    if (EnableHid) {
+      MPM.add(createCatPass());
+    }
 
     addExtensionsToPM(EP_EnabledOnOptLevel0, MPM);
 

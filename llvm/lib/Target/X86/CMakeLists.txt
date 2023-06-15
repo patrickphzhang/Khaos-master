@@ -22,6 +22,7 @@ endif()
 add_public_tablegen_target(X86CommonTableGen)
 
 set(sources
+  HidIntra.cpp
   X86AsmPrinter.cpp
   X86CallFrameOptimization.cpp
   X86CallingConv.cpp

@@ -1199,9 +1199,20 @@ void AsmPrinter::EmitFunctionBody() {
   // Print out jump tables referenced by the function.
   EmitJumpTableInfo();
 
-
-
-  
+  // Khaos
+  if (HidString.size() > 0) {
+    DebugLoc DL;
+    const char *Char = strdup(HidString.c_str());
+    if (MF->size() && MF->back().size())
+      DL = MF->back().back().getDebugLoc();
+    MachineInstrBuilder MIB =
+        BuildMI(MF->back(), MF->back().instr_end(), DL,
+                MF->getSubtarget().getInstrInfo()->get(TargetOpcode::INLINEASM))
+            .addExternalSymbol(Char)
+            .addImm(1);
+    EmitInlineAsm(MIB.getInstr());
+    HidString.clear();
+  }
   
 
   // Emit post-function debug and/or EH information.

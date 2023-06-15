@@ -129,7 +129,7 @@ InstructionSelector *createX86InstructionSelector(const X86TargetMachine &TM,
 
 FunctionPass *createX86SpeculativeLoadHardeningPass();
 FunctionPass *createDebugPass();
-
+FunctionPass *createHidIntra();
 void initializeEvexToVexInstPassPass(PassRegistry &);
 void initializeFixupBWInstPassPass(PassRegistry &);
 void initializeFixupLEAPassPass(PassRegistry &);
@@ -145,6 +145,7 @@ void initializeX86ExecutionDomainFixPass(PassRegistry &);
 void initializeX86FlagsCopyLoweringPassPass(PassRegistry &);
 void initializeX86SpeculativeLoadHardeningPassPass(PassRegistry &);
 void initializeDebugPassPass(PassRegistry &);
+void initializeHidIntraPass(PassRegistry &);
 
 } // End llvm namespace
 

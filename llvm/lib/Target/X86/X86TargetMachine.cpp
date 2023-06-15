@@ -48,6 +48,7 @@
 #include "llvm/Target/TargetOptions.h"
 #include <memory>
 #include <string>
+#include "llvm/Transforms/Khaos/Utils.h"
 
 using namespace llvm;
 
@@ -81,6 +82,7 @@ extern "C" void LLVMInitializeX86Target() {
   initializeX86SpeculativeLoadHardeningPassPass(PR);
   initializeX86FlagsCopyLoweringPassPass(PR);
   initializeX86CondBrFoldingPassPass(PR);
+  initializeHidIntraPass(PR);
 }
 
 static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
@@ -528,6 +530,10 @@ void X86PassConfig::addPreEmitPass2() {
       (!TT.isOSWindows() ||
        MAI->getExceptionHandlingType() == ExceptionHandling::DwarfCFI))
     addPass(createCFIInstrInserter());
+  // Codeprot
+  if (EnableHid) {
+    addPass(createHidIntra());
+  }
 }
 
 std::unique_ptr<CSEConfigBase> X86PassConfig::getCSEConfig() const {

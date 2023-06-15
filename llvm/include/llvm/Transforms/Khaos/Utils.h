@@ -60,12 +60,15 @@ using namespace std;
 
 namespace llvm {
     class ModulePass;
+    extern unsigned int GHidIdx;
+    extern std::string HidString;
+    
     extern ModulePass *createFusPass();
     extern ModulePass *createFisPass(); 
     extern ModulePass *createHidPass();
     extern ModulePass *createFisPositionPass();
+    extern ModulePass *createCatPass();
 }
-
 extern cl::opt<bool> EnableFus;
 extern cl::opt<bool> EnableHid;
 extern cl::opt<bool> EnableFis;
