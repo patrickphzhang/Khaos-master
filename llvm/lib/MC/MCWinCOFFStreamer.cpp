@@ -76,10 +76,6 @@ void MCWinCOFFStreamer::InitSections(bool NoExecStack) {
   SwitchSection(getContext().getObjectFileInfo()->getDataSection());
   EmitCodeAlignment(4);
 
-  // Khaos
-  SwitchSection(getContext().getObjectFileInfo()->getPayloadSection());
-  EmitCodeAlignment(4);
-
   SwitchSection(getContext().getObjectFileInfo()->getBSSSection());
   EmitCodeAlignment(4);
 

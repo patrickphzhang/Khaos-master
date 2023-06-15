@@ -275,25 +275,6 @@ MCSection *TargetLoweringObjectFile::getSectionForJumpTable(
                                Align);
 }
 
-#ifdef _WIN32
-// Khaos
-MCSection *TargetLoweringObjectFile::getSectionForPayload(
-    const Function &F, const TargetMachine &TM) const {
-  return PayloadSection;
-}
-MCSection *
-TargetLoweringObjectFile::getSectionForSMC(const Function &F,
-                                               const TargetMachine &TM) const {
-  return SMCSection;
-}
-
-MCSection *
-TargetLoweringObjectFile::getSectionForSMC(const GlobalVariable &GV,
-                                           const TargetMachine &TM) const {
-  return SMCSection;
-}
-#endif
-
 bool TargetLoweringObjectFile::shouldPutJumpTableInFunctionSection(
     bool UsesLabelDifference, const Function &F) const {
   // In PIC mode, we need to emit the jump table to the same section as the

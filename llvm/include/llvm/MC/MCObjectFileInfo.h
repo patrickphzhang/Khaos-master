@@ -57,10 +57,6 @@ protected:
   /// Section directive for standard data.
   MCSection *DataSection;
 
-  // Khaos
-  /// Section directive for IntraFunctionShuffle.
-  MCSection *PayloadSection;
-  MCSection *SMCSection;
   /// Section that is default initialized to zero.
   MCSection *BSSSection;
 
@@ -242,9 +238,6 @@ public:
 
   MCSection *getTextSection() const { return TextSection; }
   MCSection *getDataSection() const { return DataSection; }
-  // Khaos
-  MCSection *getPayloadSection() const { return PayloadSection; }
-  MCSection *getSMCSection() const { return SMCSection; }
   MCSection *getBSSSection() const { return BSSSection; }
   MCSection *getReadOnlySection() const { return ReadOnlySection; }
   MCSection *getLSDASection() const { return LSDASection; }

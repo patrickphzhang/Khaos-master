@@ -336,10 +336,6 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T, bool Large) {
   if (T.isOSSolaris() && T.getArch() != Triple::x86_64)
     EHSectionFlags |= ELF::SHF_WRITE;
 
-#ifdef __linux__
-    SMCSection = Ctx->getELFSection(".smcsec",ELF::SHT_PROGBITS,ELF::SHF_ALLOC|ELF::SHF_WRITE);
-#endif
-
   // ELF
   BSSSection = Ctx->getELFSection(".bss", ELF::SHT_NOBITS,
                                   ELF::SHF_WRITE | ELF::SHF_ALLOC);
@@ -516,20 +512,6 @@ void MCObjectFileInfo::initCOFFMCObjectFileInfo(const Triple &T) {
       ".data", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA | COFF::IMAGE_SCN_MEM_READ |
                    COFF::IMAGE_SCN_MEM_WRITE,
       SectionKind::getData());
-
-#ifdef _WIN32
-  // Khaos
-  PayloadSection = Ctx->getCOFFSection(".payload",
-                                    COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
-                                        COFF::IMAGE_SCN_MEM_READ |
-                                        COFF::IMAGE_SCN_MEM_WRITE,
-                                    SectionKind::getData());
-  SMCSection = Ctx->getCOFFSection(".smcsec",
-                                       COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
-                                           COFF::IMAGE_SCN_MEM_READ |
-                                           COFF::IMAGE_SCN_MEM_WRITE,
-                                       SectionKind::getData());
-#endif
 
   ReadOnlySection = Ctx->getCOFFSection(
       ".rdata", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA | COFF::IMAGE_SCN_MEM_READ,
