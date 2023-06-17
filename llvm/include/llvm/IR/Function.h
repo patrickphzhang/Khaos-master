@@ -119,7 +119,7 @@ public:
   void setONL(uint Length) { ONL = Length; }
 
   bool skipKhaos() {
-    if (getName() == "main" || getName() == "_init" || getName().find("Fusion") != StringRef::npos
+    if (getName() == "main" || getName() == "_init" 
         || getName().find("__cxx_global_var_init") != StringRef::npos
         || getName().find("__gxx_personality_v0") != StringRef::npos
         || getName().find("__clang_call_terminate") != StringRef::npos
@@ -128,6 +128,7 @@ public:
         || getName().find("extract_ctrlbit") != StringRef::npos
         || getName().find("extract_ctrlsign") != StringRef::npos
         || getName().find("get_random") != StringRef::npos
+        || getName().find("cat_khaos") != StringRef::npos
         || getName().contains("INS_6VectorIdEEE5solveIN") // TODO: this is a bug, fix it
         || getName().equals("_ZN9EnvirBase15checkTimeLimitsEv")
         || getName().startswith("_ZN9TOmnetApp15checkTimeLimitsEv")

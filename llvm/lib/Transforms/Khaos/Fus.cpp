@@ -89,7 +89,8 @@ bool Fus::runOnModule(Module &M) {
         }
     }
     for (auto &F : M) {
-        if (F.isIntrinsic() || F.isDeclaration() || F.isVarArg() || F.mayVarArg() || F.skipKhaos() || F.hasStructArg())
+        if (F.isIntrinsic() || F.isDeclaration() || F.isVarArg() || F.mayVarArg() || 
+            F.skipKhaos() || F.hasStructArg() || F.getName().find("Fusion") != StringRef::npos)
             continue;
         if (SepOnly && !F.isKhaosFunction())
             continue;
