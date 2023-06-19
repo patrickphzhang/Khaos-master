@@ -42,7 +42,6 @@ BasicBlock *llvm::CloneBasicBlock(const BasicBlock *BB, ValueToValueMapTy &VMap,
                                   const Twine &NameSuffix, Function *F,
                                   ClonedCodeInfo *CodeInfo,
                                   DebugInfoFinder *DIFinder) {
-  // errs() << "CloneBasicBlock\n";
   DenseMap<const MDNode *, MDNode *> Cache;
   BasicBlock *NewBB = BasicBlock::Create(BB->getContext(), "", F);
   if (BB->hasName())
