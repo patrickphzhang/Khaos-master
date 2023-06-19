@@ -66,63 +66,6 @@ bool Hid::runOnModule(Module &M) {
             }
         }
     }
-    if (!Holder) {
-        errs() << "No holder function, return.\n";
-        return false;
-    }
-    BasicBlock *Throw = &Holder->getEntryBlock(), 
-               *LandingPad, *Unreachable;
-    for (auto &BB : *Holder) {
-        if (BB.isLandingPad())
-            LandingPad = &BB;
-    }
-    Unreachable = &Holder->back();
-    Throw->setName("throw");
-    LandingPad->setName("landingpad");
-    Unreachable->setName("unreachable");
-    // hide the jmps
-    outs() << Brs.size() << "branches to hide\n";
-    BranchInst *ToTry; 
-    Function *Func;
-    SmallVector<ReturnInst*, 8> Unused;
-    for (uint i = 0; i < Brs.size(); i++) {
-        ToTry = Brs[i];
-        Func = ToTry->getFunction();
-        if (!Func->hasPersonalityFn())
-            Func->setPersonalityFn(Holder->getPersonalityFn());
-        ValueToValueMapTy VMap;
-        if (Func->isKhaosFunction())
-            CloneFunctionInto(Func, Holder, VMap, false, Unused, "_khaos", nullptr);
-        Func->setKhaosFunction(true);
-    }
-    for (auto &F : M)
-        F.setKhaosFunction(false);
-    while (!Brs.empty()) {
-        ToTry = Brs.pop_back_val();
-        Func = ToTry->getFunction();
-        if (Func->isKhaosFunction())
-            continue;
-        Throw = LandingPad = Unreachable = nullptr;
-
-        for (auto &BB : *Func) {
-            if (BB.getName().equals("throw_khaos"))
-                Throw = &BB;
-            else if (BB.getName().equals("landingpad_khaos"))
-                LandingPad = &BB;
-            else if (BB.getName().equals("unreachable_khaos"))
-                Unreachable = &BB;
-        }
-        BasicBlock *Original = ToTry->getSuccessor(0);
-        ToTry->setOperand(0, Throw);
-        Instruction *Return = LandingPad->getTerminator();
-        Return->dropAllReferences();
-        Return->eraseFromParent();
-        BranchInst::Create(Original, LandingPad);
-        for (auto &Phis : Original->phis())
-            Phis.replaceIncomingBlockWith(ToTry->getParent(), LandingPad);
-        Func->setKhaosFunction(true);
-    }
-    Holder->deleteBody();
     // hide the calls
     outs() << Calls.size() << "calls to hide\n";
     CallInst *ToHide;
@@ -158,6 +101,60 @@ bool Hid::runOnModule(Module &M) {
                                 "", ToHide);
         ToHide->setCalledOperand(ICalleeFunction);
     }
+    // hide the jmps
+    if (!Holder) {
+        errs() << "No holder function, return.\n";
+        return false;
+    }
+    BasicBlock *Throw = &Holder->getEntryBlock(), 
+               *LandingPad, *Unreachable;
+    for (auto &BB : *Holder)
+        if (BB.isLandingPad())
+            LandingPad = &BB;
+    Unreachable = &Holder->back();
+    Throw->setName("throw");
+    LandingPad->setName("landingpad");
+    Unreachable->setName("unreachable");
+    BranchInst *ToTry; 
+    Function *Func;
+    SmallVector<ReturnInst*, 8> Unused;
+    for (uint i = 0; i < Brs.size(); i++) {
+        ToTry = Brs[i];
+        Func = ToTry->getFunction();
+        if (!Func->hasPersonalityFn())
+            Func->setPersonalityFn(Holder->getPersonalityFn());
+        ValueToValueMapTy VMap;
+        if (Func->isKhaosFunction())
+            CloneFunctionInto(Func, Holder, VMap, false, Unused, "_khaos", nullptr);
+        Func->setKhaosFunction(true);
+    }
+    for (auto &F : M)
+        F.setKhaosFunction(false);
+    while (!Brs.empty()) {
+        ToTry = Brs.pop_back_val();
+        Func = ToTry->getFunction();
+        if (Func->isKhaosFunction())
+            continue;
+        Throw = LandingPad = Unreachable = nullptr;
+        for (auto &BB : *Func) {
+            if (BB.getName().equals("throw_khaos"))
+                Throw = &BB;
+            else if (BB.getName().equals("landingpad_khaos"))
+                LandingPad = &BB;
+            else if (BB.getName().equals("unreachable_khaos"))
+                Unreachable = &BB;
+        }
+        BasicBlock *Original = ToTry->getSuccessor(0);
+        ToTry->setOperand(0, Throw);
+        Instruction *Return = LandingPad->getTerminator();
+        Return->dropAllReferences();
+        Return->eraseFromParent();
+        BranchInst::Create(Original, LandingPad);
+        for (auto &Phis : Original->phis())
+            Phis.replaceIncomingBlockWith(ToTry->getParent(), LandingPad);
+        Func->setKhaosFunction(true);
+    }
+    Holder->deleteBody();
     C.setDiscardValueNames(DiscardValueNames);
     return true;
 }
