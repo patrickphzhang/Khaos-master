@@ -36,18 +36,23 @@ bool Hid::runOnModule(Module &M) {
     outs() << "control flow hidden pass\n";
     // M.dump();
     LLVMContext &C = M.getContext();
+    bool DiscardValueNames = C.shouldDiscardValueNames();
+    C.setDiscardValueNames(false);
     Type *I64 = Type::getInt64Ty(C);
     Type *I64Ptr = Type::getInt64PtrTy(C);
     std::map<Function *, unsigned long long> IndexMap;
     SmallVector<BranchInst *, 8> Brs;
     SmallVector<CallInst *, 8> Calls;
     SmallVector<Constant *, 8> Callees;
+    Function *Holder;
     unsigned long long Index = 0;
     for (auto &F : M) {
+        if (F.getName().equals("_Z16khaos_hid_holderv"))
+            Holder = &F;
         for (auto &BB : F) {
             for (auto &Inst : BB) {
                 if (BranchInst * BI = dyn_cast<BranchInst>(&Inst)) {
-                    if (BI->isUnconditional())
+                    if (BI->isUnconditional() && !BI->getParent()->isEHPad() && !BI->getParent()->isLandingPad())
                         Brs.push_back(BI);
                 } if (CallInst * CI = dyn_cast<CallInst>(&Inst)) {
                     if (Function * Callee = CI->getCalledFunction()) {
@@ -61,8 +66,63 @@ bool Hid::runOnModule(Module &M) {
             }
         }
     }
+    if (!Holder) {
+        errs() << "No holder function, return.\n";
+        return false;
+    }
+    BasicBlock *Throw = &Holder->getEntryBlock(), 
+               *LandingPad, *Unreachable;
+    for (auto &BB : *Holder) {
+        if (BB.isLandingPad())
+            LandingPad = &BB;
+    }
+    Unreachable = &Holder->back();
+    Throw->setName("throw");
+    LandingPad->setName("landingpad");
+    Unreachable->setName("unreachable");
     // hide the jmps
     outs() << Brs.size() << "branches to hide\n";
+    BranchInst *ToTry; 
+    Function *Func;
+    SmallVector<ReturnInst*, 8> Unused;
+    for (uint i = 0; i < Brs.size(); i++) {
+        ToTry = Brs[i];
+        Func = ToTry->getFunction();
+        if (!Func->hasPersonalityFn())
+            Func->setPersonalityFn(Holder->getPersonalityFn());
+        ValueToValueMapTy VMap;
+        if (Func->isKhaosFunction())
+            CloneFunctionInto(Func, Holder, VMap, false, Unused, "_khaos", nullptr);
+        Func->setKhaosFunction(true);
+    }
+    for (auto &F : M)
+        F.setKhaosFunction(false);
+    while (!Brs.empty()) {
+        ToTry = Brs.pop_back_val();
+        Func = ToTry->getFunction();
+        if (Func->isKhaosFunction())
+            continue;
+        Throw = LandingPad = Unreachable = nullptr;
+
+        for (auto &BB : *Func) {
+            if (BB.getName().equals("throw_khaos"))
+                Throw = &BB;
+            else if (BB.getName().equals("landingpad_khaos"))
+                LandingPad = &BB;
+            else if (BB.getName().equals("unreachable_khaos"))
+                Unreachable = &BB;
+        }
+        BasicBlock *Original = ToTry->getSuccessor(0);
+        ToTry->setOperand(0, Throw);
+        Instruction *Return = LandingPad->getTerminator();
+        Return->dropAllReferences();
+        Return->eraseFromParent();
+        BranchInst::Create(Original, LandingPad);
+        for (auto &Phis : Original->phis())
+            Phis.replaceIncomingBlockWith(ToTry->getParent(), LandingPad);
+        Func->setKhaosFunction(true);
+    }
+    Holder->deleteBody();
     // hide the calls
     outs() << Calls.size() << "calls to hide\n";
     CallInst *ToHide;
@@ -98,7 +158,7 @@ bool Hid::runOnModule(Module &M) {
                                 "", ToHide);
         ToHide->setCalledOperand(ICalleeFunction);
     }
-    // M.dump();
+    C.setDiscardValueNames(DiscardValueNames);
     return true;
 }
 
