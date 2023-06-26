@@ -474,8 +474,8 @@ void PassManagerBuilder::populateModulePassManager(
 
     if (EnableFis) {
       MPM.add(createFisPass());
-      if (!EnableFus)
-        MPM.add(createFisPositionPass());
+      // if (!EnableFus)
+      //   MPM.add(createFisPositionPass());
     }
     if (EnableHid) {
       MPM.add(createCatPass());
@@ -801,8 +801,8 @@ void PassManagerBuilder::populateModulePassManager(
   // Khaos
   if (EnableFis) {
     MPM.add(createFisPass());
-    if (!EnableFus)
-      MPM.add(createFisPositionPass());
+    // if (!EnableFus)
+    //   MPM.add(createFisPositionPass());
   }
 
 }
@@ -821,7 +821,7 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
   // Khaos
   if (EnableFus) {
       PM.add(createFusPass());
-      PM.add(createFisPositionPass());
+      // PM.add(createFisPositionPass());
   }
 
   // Khaos
