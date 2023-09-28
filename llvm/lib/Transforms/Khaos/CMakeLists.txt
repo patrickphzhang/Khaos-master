@@ -6,6 +6,7 @@ add_llvm_library( LLVMKhaosMid
   Fis.cpp
   Hid.cpp
   Cat.cpp
+  AutoMode.cpp
 )
 
 add_dependencies(LLVMKhaosMid intrinsics_gen)

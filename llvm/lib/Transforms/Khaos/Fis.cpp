@@ -154,7 +154,6 @@ Fis::buildRegionsToExtract_v1(Function &F, BlockFrequencyInfo &BFI, DominatorTre
                 if (const LandingPadInst *LPI = dyn_cast<LandingPadInst>(&I)) {
                     if (LPI->isCleanup() && LPI->getNumClauses() >= 2) {
                         Splittable = false;
-                        errs() << "two catches\n";
                         // two catches are much complicated than one, we do not split them for now;
                     }
                 }
@@ -235,8 +234,13 @@ bool Fis::runOnModule(Module &M) {
         //functions created by Khaos, std functions
 		if (F.isIntrinsic() || F.isDeclaration() || F.empty() || F.hasOptNone() ||
             F.isKhaosFunction() || F.getName().find("std", 0) != StringRef::npos ||
-            F.getName().find("INS_6VectorIdEEE5solveIN") != StringRef::npos) 
+            F.skipKhaos()) 
             continue;
+        // if (F.getName().size() > 8 ) 
+        //     continue;
+        // if (F.getName().equals("main")) continue;
+        // errs() << "splitting " << F.getName() << "\n";
+        
         bool splitFlag = splittingFunction(F);
         if (splitFlag)
         {

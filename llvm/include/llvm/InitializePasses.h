@@ -23,6 +23,7 @@ void initializeFusPass(PassRegistry&);
 void initializeHidPass(PassRegistry&);
 void initializeFisPositionPass(PassRegistry&);
 void initializeFisPass(PassRegistry&);
+void initializeAutoModePassPass(PassRegistry&);
 
 /// Initialize all passes linked into the TransformUtils library.
 void initializeCore(PassRegistry&);

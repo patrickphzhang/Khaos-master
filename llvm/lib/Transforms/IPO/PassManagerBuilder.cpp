@@ -432,7 +432,15 @@ void PassManagerBuilder::populateModulePassManager(
   // Whether this is a default or *LTO pre-link pipeline. The FullLTO post-link
   // is handled separately, so just check this is not the ThinLTO post-link.
   bool DefaultOrPreLinkPipeline = !PerformThinLTO;
-
+  if (EnableAutoMode){
+    MPM.add(createAutoModePass());
+    //Intra
+    EnableHid = true;
+    //Fission
+    EnableFis = true;
+    //Fusion
+    EnableFus = true;
+  }
   if (!PGOSampleUse.empty()) {
     MPM.add(createPruneEHPass());
     // In ThinLTO mode, when flattened profile is used, all the available
@@ -471,16 +479,7 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createEliminateAvailableExternallyPass());
       MPM.add(createGlobalDCEPass());
     }
-
-    if (EnableFis) {
-      MPM.add(createFisPass());
-      // if (!EnableFus)
-      //   MPM.add(createFisPositionPass());
-    }
-    if (EnableHid) {
-      MPM.add(createCatPass());
-    }
-
+    
     addExtensionsToPM(EP_EnabledOnOptLevel0, MPM);
 
     if (PrepareForLTO || PrepareForThinLTO) {
@@ -797,12 +796,9 @@ void PassManagerBuilder::populateModulePassManager(
     // Rename anon globals to be able to handle them in the summary
     MPM.add(createNameAnonGlobalPass());
   }
-
   // Khaos
   if (EnableFis) {
     MPM.add(createFisPass());
-    // if (!EnableFus)
-    //   MPM.add(createFisPositionPass());
   }
 
 }
@@ -821,7 +817,6 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
   // Khaos
   if (EnableFus) {
       PM.add(createFusPass());
-      // PM.add(createFisPositionPass());
   }
 
   // Khaos

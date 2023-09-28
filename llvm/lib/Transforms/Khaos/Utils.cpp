@@ -11,3 +11,8 @@ cl::opt<bool> OriOnly("ori", cl::init(false), cl::Hidden,
 cl::opt<bool> EnableFis("enable-fis",
 				cl::desc("Enable Fission Pass"),
 				cl::init(false), cl::Hidden);
+cl::opt<bool> EnableAutoMode("enable-automode",
+                cl::init(false),
+                cl::Hidden,
+                cl::desc("Enable auto mode")
+                );

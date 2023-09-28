@@ -70,6 +70,9 @@ public:
 
 private:
   // Khaos
+  bool AutoModeFission = false;
+  bool AutoModeFusion = false;
+  bool AutoModeIntra = false;
   bool KhaosFunction = false;
   uint ONL = 0;
   // Important things that make up a function!
@@ -117,6 +120,13 @@ public:
   uint getONL() const { return ONL; }
   
   void setONL(uint Length) { ONL = Length; }
+  
+  void setAutoModeFission(bool F){AutoModeFission = F;};
+  void setAutoModeFusion(bool F){AutoModeFusion = F;};
+  void setAutoModeIntra(bool F){AutoModeIntra = F;};
+  bool getAutoModeFission(){return AutoModeFission;};
+  bool getAutoModeFusion(){return AutoModeFusion;};
+  bool getAutoModeIntra(){return AutoModeIntra;};
 
   bool skipKhaos() {
     if (getName() == "main" || getName() == "_init" 

@@ -68,10 +68,12 @@ namespace llvm {
     extern ModulePass *createHidPass();
     extern ModulePass *createFisPositionPass();
     extern ModulePass *createCatPass();
+    extern ModulePass *createAutoModePass();
 }
 extern cl::opt<bool> EnableFus;
 extern cl::opt<bool> EnableHid;
 extern cl::opt<bool> EnableFis;
 extern cl::opt<bool> SepOnly;
 extern cl::opt<bool> OriOnly;
+extern cl::opt<bool> EnableAutoMode;
 #endif
