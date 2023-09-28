@@ -12,11 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Khaos/Utils.h"
+#include "llvm/Demangle/Demangle.h"
 
 #define DEBUG_TYPE "Hid"
 
@@ -60,7 +63,7 @@ bool Hid::runOnModule(Module &M) {
                             Callee->isVarArg() || Callee->hasPersonalityFn() ||
                             Callee->skipKhaos())
                             continue;
-                        Calls.push_back(CI);
+                        // Calls.push_back(CI);
                     }
                 } 
             }
@@ -118,23 +121,33 @@ bool Hid::runOnModule(Module &M) {
     BranchInst *ToTry; 
     Function *Func;
     SmallVector<ReturnInst*, 8> Unused;
-    for (uint i = 0; i < Brs.size(); i++) {
-        ToTry = Brs[i];
-        Func = ToTry->getFunction();
-        if (!Func->hasPersonalityFn())
-            Func->setPersonalityFn(Holder->getPersonalityFn());
-        ValueToValueMapTy VMap;
-        if (Func->isKhaosFunction())
-            CloneFunctionInto(Func, Holder, VMap, false, Unused, "_khaos", nullptr);
-        Func->setKhaosFunction(true);
-    }
-    for (auto &F : M)
-        F.setKhaosFunction(false);
+    SmallSet<Function *, 8> Copied;
+    
+    int hidCount = 0;
     while (!Brs.empty()) {
         ToTry = Brs.pop_back_val();
         Func = ToTry->getFunction();
-        if (Func->isKhaosFunction())
+        std::string name = demangle(Func->getName().str());
+        if (name.find_first_of("std::") == 0 || name.find_first_of("void std::") == 0)
             continue;
+        if (Copied.count(Func) == 1)
+            continue;
+        BasicBlock *Original = ToTry->getSuccessor(0);
+        if (dyn_cast<PHINode>(&(Original->front())))
+            continue;
+        Copied.insert(Func);
+        // hidCount++;
+        // if (hidCount > 20 || hidCount <= 19)
+        //     continue;1260
+        // if (hidCount > 630/* || hidCount <= 646*/)
+        //     continue;
+        // errs() << "in " << Func->getName() << "\n";
+        // errs() << "in " << name << "\n";
+        // errs() << "in " << name << "\n";
+        // Func->dump();
+        Func->setPersonalityFn(Holder->getPersonalityFn());
+        ValueToValueMapTy VMap;
+        CloneFunctionInto(Func, Holder, VMap, false, Unused, "_khaos", nullptr);
         Throw = LandingPad = Unreachable = nullptr;
         for (auto &BB : *Func) {
             if (BB.getName().equals("throw_khaos"))
@@ -144,7 +157,7 @@ bool Hid::runOnModule(Module &M) {
             else if (BB.getName().equals("unreachable_khaos"))
                 Unreachable = &BB;
         }
-        BasicBlock *Original = ToTry->getSuccessor(0);
+        
         ToTry->setOperand(0, Throw);
         Instruction *Return = LandingPad->getTerminator();
         Return->dropAllReferences();
@@ -152,8 +165,10 @@ bool Hid::runOnModule(Module &M) {
         BranchInst::Create(Original, LandingPad);
         for (auto &Phis : Original->phis())
             Phis.replaceIncomingBlockWith(ToTry->getParent(), LandingPad);
-        Func->setKhaosFunction(true);
+        // Func->dump();
+        // Func->setKhaosFunction(true);
     }
+    errs() << "hide count " << hidCount << "\n";
     Holder->deleteBody();
     C.setDiscardValueNames(DiscardValueNames);
     return true;
