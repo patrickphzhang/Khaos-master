@@ -530,7 +530,7 @@ void X86PassConfig::addPreEmitPass2() {
       (!TT.isOSWindows() ||
        MAI->getExceptionHandlingType() == ExceptionHandling::DwarfCFI))
     addPass(createCFIInstrInserter());
-  // Codeprot
+  // Khaos
   if (EnableHid) {
     addPass(createHidIntra());
   }

@@ -52,8 +52,11 @@ bool Hid::runOnModule(Module &M) {
     for (auto &F : M) {
         if (F.getName().equals("_Z16khaos_hid_holderv"))
             Holder = &F;
-        if (F.skipKhaos())
+        if (F.skipKhaos()) {
+            // errs() << "skipped: " << F.getName() << "\n"; 
             continue;
+        }
+            
         for (auto &BB : F) {
             for (auto &Inst : BB) {
                 if (BranchInst * BI = dyn_cast<BranchInst>(&Inst)) {

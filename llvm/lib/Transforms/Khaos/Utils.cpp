@@ -2,6 +2,8 @@
 
 cl::opt<bool> EnableHid("enable-hid", cl::init(false), cl::Hidden,
 		cl::desc("Enable Hid"));
+cl::opt<bool> EnableStrip("enable-strip", cl::init(false), cl::Hidden,
+		cl::desc("Enable Strip"));
 cl::opt<bool> EnableFus("enable-fus", cl::init(false), cl::Hidden,
 		cl::desc("Enable Fus"));
 cl::opt<bool> SepOnly("sep", cl::init(false), cl::Hidden,

@@ -151,7 +151,8 @@ public:
         || getName().startswith("__warn_memset_zero_len"))
       return true;
     std::string name = demangle(getName().str());
-    if (name.find_first_of("std::") == 0 || name.find_first_of("void std::") == 0)
+    StringRef na(name);
+    if (na.startswith("std::") || na.startswith("void std::"))
       return true;
     return false;
   }

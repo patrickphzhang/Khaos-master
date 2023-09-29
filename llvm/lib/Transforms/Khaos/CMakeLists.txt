@@ -7,6 +7,7 @@ add_llvm_library( LLVMKhaosMid
   Hid.cpp
   Cat.cpp
   AutoMode.cpp
+  StripSkippedFunctions.cpp
 )
 
 add_dependencies(LLVMKhaosMid intrinsics_gen)

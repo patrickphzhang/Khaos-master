@@ -434,11 +434,11 @@ void PassManagerBuilder::populateModulePassManager(
   bool DefaultOrPreLinkPipeline = !PerformThinLTO;
   if (EnableAutoMode){
     MPM.add(createAutoModePass());
-    //Intra
+    // Hidden
     EnableHid = true;
-    //Fission
+    // Fission
     EnableFis = true;
-    //Fusion
+    // Fusion
     EnableFus = true;
   }
   if (!PGOSampleUse.empty()) {
@@ -823,7 +823,12 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
   if (EnableHid) {
       PM.add(createHidPass());
   }
-
+  
+  // Khaos
+  if (EnableStrip) {
+      // errs() << "EnableStrip\n";
+      PM.add(createStripPass());
+  }
   // Provide AliasAnalysis services for optimizations.
   addInitialAliasAnalysisPasses(PM);
 
