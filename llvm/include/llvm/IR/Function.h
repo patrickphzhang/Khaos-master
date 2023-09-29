@@ -40,6 +40,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include "llvm/Demangle/Demangle.h"
 
 namespace llvm {
 
@@ -137,6 +138,7 @@ public:
         || getName().find("extract_ptrval") != StringRef::npos
         || getName().find("extract_ctrlbit") != StringRef::npos
         || getName().find("extract_ctrlsign") != StringRef::npos
+        || getName().find("_Z16khaos_hid_holderv") != StringRef::npos
         || getName().find("get_random") != StringRef::npos
         || getName().find("cat_khaos") != StringRef::npos
         || getName().contains("INS_6VectorIdEEE5solveIN") // TODO: this is a bug, fix it
@@ -147,6 +149,9 @@ public:
         || getName().startswith("OPENSSL_cpuid_setup")
         || getName().startswith("wc_lines_avx2") 
         || getName().startswith("__warn_memset_zero_len"))
+      return true;
+    std::string name = demangle(getName().str());
+    if (name.find_first_of("std::") == 0 || name.find_first_of("void std::") == 0)
       return true;
     return false;
   }

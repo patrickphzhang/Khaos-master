@@ -50,6 +50,8 @@ bool Hid::runOnModule(Module &M) {
     Function *Holder;
     unsigned long long Index = 0;
     for (auto &F : M) {
+        if (F.skipKhaos())
+            continue;
         if (F.getName().equals("_Z16khaos_hid_holderv"))
             Holder = &F;
         for (auto &BB : F) {
@@ -63,7 +65,7 @@ bool Hid::runOnModule(Module &M) {
                             Callee->isVarArg() || Callee->hasPersonalityFn() ||
                             Callee->skipKhaos())
                             continue;
-                        // Calls.push_back(CI);
+                        Calls.push_back(CI);
                     }
                 } 
             }
