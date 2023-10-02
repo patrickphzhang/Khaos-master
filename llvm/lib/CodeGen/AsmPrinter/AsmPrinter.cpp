@@ -1045,89 +1045,94 @@ void AsmPrinter::EmitFunctionBody() {
   // Print out code for the function.
   bool HasAnyRealCode = false;
   int NumInstsInFunction = 0;
-  for (auto &MBB : *MF) {
-    // Print a label for the basic block.
-    EmitBasicBlockStart(MBB);
-    for (auto &MI : MBB) {
-      // Print the assembly for the instruction.
-      if (!MI.isPosition() && !MI.isImplicitDef() && !MI.isKill() &&
-          !MI.isDebugInstr()) {
-        HasAnyRealCode = true;
-        ++NumInstsInFunction;
-      }
+  std::string name = demangle(MF->getName().str());
+  StringRef na(name);
+  if (EnableStrip && (na.startswith("std::") || na.startswith("void std::"))) {   
+    errs() << "skipped " << MF->getName() << "\n"; 
+  } else {
+    for (auto &MBB : *MF) {
+      // Print a label for the basic block.
+      EmitBasicBlockStart(MBB);
+      for (auto &MI : MBB) {
+        // Print the assembly for the instruction.
+        if (!MI.isPosition() && !MI.isImplicitDef() && !MI.isKill() &&
+            !MI.isDebugInstr()) {
+          HasAnyRealCode = true;
+          ++NumInstsInFunction;
+        }
 
-      // If there is a pre-instruction symbol, emit a label for it here.
-      if (MCSymbol *S = MI.getPreInstrSymbol())
-        OutStreamer->EmitLabel(S);
+        // If there is a pre-instruction symbol, emit a label for it here.
+        if (MCSymbol *S = MI.getPreInstrSymbol())
+          OutStreamer->EmitLabel(S);
 
-      if (ShouldPrintDebugScopes) {
-        for (const HandlerInfo &HI : Handlers) {
-          NamedRegionTimer T(HI.TimerName, HI.TimerDescription,
-                             HI.TimerGroupName, HI.TimerGroupDescription,
-                             TimePassesIsEnabled);
-          HI.Handler->beginInstruction(&MI);
+        if (ShouldPrintDebugScopes) {
+          for (const HandlerInfo &HI : Handlers) {
+            NamedRegionTimer T(HI.TimerName, HI.TimerDescription,
+                              HI.TimerGroupName, HI.TimerGroupDescription,
+                              TimePassesIsEnabled);
+            HI.Handler->beginInstruction(&MI);
+          }
+        }
+
+        if (isVerbose())
+          emitComments(MI, OutStreamer->GetCommentOS());
+
+        switch (MI.getOpcode()) {
+        case TargetOpcode::CFI_INSTRUCTION:
+          emitCFIInstruction(MI);
+          break;
+        case TargetOpcode::LOCAL_ESCAPE:
+          emitFrameAlloc(MI);
+          break;
+        case TargetOpcode::ANNOTATION_LABEL:
+        case TargetOpcode::EH_LABEL:
+        case TargetOpcode::GC_LABEL:
+          OutStreamer->EmitLabel(MI.getOperand(0).getMCSymbol());
+          break;
+        case TargetOpcode::INLINEASM:
+        case TargetOpcode::INLINEASM_BR:
+          EmitInlineAsm(&MI);
+          break;
+        case TargetOpcode::DBG_VALUE:
+          if (isVerbose()) {
+            if (!emitDebugValueComment(&MI, *this))
+              EmitInstruction(&MI);
+          }
+          break;
+        case TargetOpcode::DBG_LABEL:
+          if (isVerbose()) {
+            if (!emitDebugLabelComment(&MI, *this))
+              EmitInstruction(&MI);
+          }
+          break;
+        case TargetOpcode::IMPLICIT_DEF:
+          if (isVerbose()) emitImplicitDef(&MI);
+          break;
+        case TargetOpcode::KILL:
+          if (isVerbose()) emitKill(&MI, *this);
+          break;
+        default:
+          EmitInstruction(&MI);
+          break;
+        }
+
+        // If there is a post-instruction symbol, emit a label for it here.
+        if (MCSymbol *S = MI.getPostInstrSymbol())
+          OutStreamer->EmitLabel(S);
+
+        if (ShouldPrintDebugScopes) {
+          for (const HandlerInfo &HI : Handlers) {
+            NamedRegionTimer T(HI.TimerName, HI.TimerDescription,
+                              HI.TimerGroupName, HI.TimerGroupDescription,
+                              TimePassesIsEnabled);
+            HI.Handler->endInstruction();
+          }
         }
       }
 
-      if (isVerbose())
-        emitComments(MI, OutStreamer->GetCommentOS());
-
-      switch (MI.getOpcode()) {
-      case TargetOpcode::CFI_INSTRUCTION:
-        emitCFIInstruction(MI);
-        break;
-      case TargetOpcode::LOCAL_ESCAPE:
-        emitFrameAlloc(MI);
-        break;
-      case TargetOpcode::ANNOTATION_LABEL:
-      case TargetOpcode::EH_LABEL:
-      case TargetOpcode::GC_LABEL:
-        OutStreamer->EmitLabel(MI.getOperand(0).getMCSymbol());
-        break;
-      case TargetOpcode::INLINEASM:
-      case TargetOpcode::INLINEASM_BR:
-        EmitInlineAsm(&MI);
-        break;
-      case TargetOpcode::DBG_VALUE:
-        if (isVerbose()) {
-          if (!emitDebugValueComment(&MI, *this))
-            EmitInstruction(&MI);
-        }
-        break;
-      case TargetOpcode::DBG_LABEL:
-        if (isVerbose()) {
-          if (!emitDebugLabelComment(&MI, *this))
-            EmitInstruction(&MI);
-        }
-        break;
-      case TargetOpcode::IMPLICIT_DEF:
-        if (isVerbose()) emitImplicitDef(&MI);
-        break;
-      case TargetOpcode::KILL:
-        if (isVerbose()) emitKill(&MI, *this);
-        break;
-      default:
-        EmitInstruction(&MI);
-        break;
-      }
-
-      // If there is a post-instruction symbol, emit a label for it here.
-      if (MCSymbol *S = MI.getPostInstrSymbol())
-        OutStreamer->EmitLabel(S);
-
-      if (ShouldPrintDebugScopes) {
-        for (const HandlerInfo &HI : Handlers) {
-          NamedRegionTimer T(HI.TimerName, HI.TimerDescription,
-                             HI.TimerGroupName, HI.TimerGroupDescription,
-                             TimePassesIsEnabled);
-          HI.Handler->endInstruction();
-        }
-      }
+      EmitBasicBlockEnd(MBB);
     }
-
-    EmitBasicBlockEnd(MBB);
-  }
-
+  } 
   EmittedInsts += NumInstsInFunction;
   MachineOptimizationRemarkAnalysis R(DEBUG_TYPE, "InstructionCount",
                                       MF->getFunction().getSubprogram(),

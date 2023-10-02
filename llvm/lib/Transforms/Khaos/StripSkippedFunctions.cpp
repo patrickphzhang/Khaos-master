@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/Transforms/Khaos/Utils.h"
 
@@ -31,26 +32,13 @@ struct Strip : public ModulePass {
 char Strip::ID = 0;
 
 bool Strip::runOnModule(Module &M) {
-  errs() << "stripping\n";
   LLVMContext *GlobalC = &M.getContext();
   for (auto &F : M) {
     std::string name = demangle(F.getName().str());
     StringRef na(name);
     if (na.startswith("std::") || na.startswith("void std::")) {
         errs() << "remove " << name << "\n";
-        errs() << "remove " << F.getName() << "\n";
-        SmallVector<BasicBlock *, 8> BBs;
-        for (auto &BB : F)
-            BBs.push_back(&BB);
-        for (auto *BB : BBs) {
-            BB->dropAllReferences();
-            BB->eraseFromParent();
-        }
-        BasicBlock *Trampoline = BasicBlock::Create(*GlobalC, "trampoline", &F);
-        Type *ORT = F.getReturnType();
-        if (!ORT->isVoidTy()) {
-            ReturnInst::Create(*GlobalC, Constant::getNullValue(ORT), Trampoline);
-        }
+        F.addFnAttr(Attribute::NoInline);
         
     }
     //   F.deleteBody();
