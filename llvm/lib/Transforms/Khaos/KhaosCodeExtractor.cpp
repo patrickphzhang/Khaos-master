@@ -1407,7 +1407,7 @@ Function *KhaosCodeExtractor::extractCodeRegion(bool ConsiderRecursive) {
   //   return nullptr;
   // }
 
-  if (inputs.size() > 10) {
+  if (inputs.size() > 6) {
     // errs() << "too many inpus\n";
     return nullptr;
   }
