@@ -49,7 +49,7 @@ bool Hid::runOnModule(Module &M) {
     SmallVector<BranchInst *, 8> Brs;
     SmallVector<CallInst *, 8> Calls;
     SmallVector<Constant *, 8> Callees;
-    Function *Holder;
+    Function *Holder = nullptr;
     unsigned long long Index = 0;
     for (auto &F : M) {
         bool flag_one = false;
@@ -62,9 +62,9 @@ bool Hid::runOnModule(Module &M) {
         if (EnableAutoMode && F.isKhaosFunction())
             continue;
         for (auto &BB : F) {
-            for (auto &Inst : BB) {
+                        for (auto &Inst : BB) {
                 if (BranchInst * BI = dyn_cast<BranchInst>(&Inst)) {
-                    if (BI->isUnconditional() && !BI->getParent()->isEHPad() && !BI->getParent()->isLandingPad())
+                    if (BI->isUnconditional() && !BB.isEHPad() && !BB.isLandingPad())
                         Brs.push_back(BI);
                 } if (CallInst * CI = dyn_cast<CallInst>(&Inst)) {
                     if (Function * Callee = CI->getCalledFunction()) {
