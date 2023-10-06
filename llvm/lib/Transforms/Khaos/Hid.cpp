@@ -20,6 +20,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Khaos/Utils.h"
 #include "llvm/Demangle/Demangle.h"
+// Khaos
+#include "llvm/Transforms/Khaos/Utils.h"
 
 #define DEBUG_TYPE "Hid"
 
@@ -50,13 +52,15 @@ bool Hid::runOnModule(Module &M) {
     Function *Holder;
     unsigned long long Index = 0;
     for (auto &F : M) {
+        bool flag_one = false;
         if (F.getName().equals("_Z16khaos_hid_holderv"))
             Holder = &F;
         if (F.skipKhaos()) {
             // errs() << "skipped: " << F.getName() << "\n"; 
             continue;
         }
-            
+        if (EnableAutoMode && F.isKhaosFunction())
+            continue;
         for (auto &BB : F) {
             for (auto &Inst : BB) {
                 if (BranchInst * BI = dyn_cast<BranchInst>(&Inst)) {
@@ -68,7 +72,10 @@ bool Hid::runOnModule(Module &M) {
                             Callee->isVarArg() || Callee->hasPersonalityFn() ||
                             Callee->skipKhaos())
                             continue;
-                        Calls.push_back(CI);
+                        if(!flag_one){
+                            Calls.push_back(CI);
+                            flag_one = true;
+                        }
                     }
                 } 
             }
@@ -109,6 +116,7 @@ bool Hid::runOnModule(Module &M) {
                                 "", ToHide);
         ToHide->setCalledOperand(ICalleeFunction);
     }
+    // return true;
     // hide the jmps
     if (!Holder) {
         errs() << "No holder function, return.\n";
@@ -172,6 +180,7 @@ bool Hid::runOnModule(Module &M) {
             Phis.replaceIncomingBlockWith(ToTry->getParent(), LandingPad);
         // Func->dump();
         // Func->setKhaosFunction(true);
+        break;
     }
     errs() << "hide count " << hidCount << "\n";
     Holder->deleteBody();

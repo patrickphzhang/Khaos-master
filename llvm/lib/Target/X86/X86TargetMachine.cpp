@@ -531,7 +531,7 @@ void X86PassConfig::addPreEmitPass2() {
        MAI->getExceptionHandlingType() == ExceptionHandling::DwarfCFI))
     addPass(createCFIInstrInserter());
   // Khaos
-  if (EnableHid) {
+  if (EnableAutoMode || EnableHid) {
     addPass(createHidIntra());
   }
 }

@@ -433,7 +433,7 @@ void PassManagerBuilder::populateModulePassManager(
   // is handled separately, so just check this is not the ThinLTO post-link.
   bool DefaultOrPreLinkPipeline = !PerformThinLTO;
   if (EnableAutoMode){
-    MPM.add(createAutoModePass());
+    // MPM.add(createAutoModePass());
     // Hidden
     EnableHid = true;
     // Fission

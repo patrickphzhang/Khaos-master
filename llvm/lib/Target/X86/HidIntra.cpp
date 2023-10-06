@@ -73,6 +73,14 @@ char HidIntra::ID = 0;
 bool HidIntra::runOnMachineFunction(MachineFunction &MF) {
   HidString.clear();
   Function &F = const_cast<Function &>(MF.getFunction());
+  if (F.skipKhaos()) 
+    return false;
+  std::string name = demangle(MF.getName().str());
+  StringRef na(name);
+  if (EnableStrip && (na.startswith("std::") || na.startswith("void std::")))  
+    return false; 
+  if (EnableAutoMode && F.isKhaosFunction())
+    return false;
   std::string FName = F.getName();
   if (F.isIntrinsic() || F.isDeclaration())
     return false;
@@ -133,6 +141,7 @@ bool HidIntra::runOnMachineFunction(MachineFunction &MF) {
 } // end of anonymous namespace
 
 void HidIntra::generateBudgets(MachineFunction &MF) {
+  bool flag_one = false;
   B3 *CurrentBudget;
   unsigned int BBID = 0, BudgetLength = 0, i = 0;
   for (auto ib = MF.begin(), ie = MF.end(); ib != ie; ib++, i++) {
@@ -157,11 +166,14 @@ void HidIntra::generateBudgets(MachineFunction &MF) {
       case X86::RETIQ:
       case X86::RETIW:
         // allocate a Budget
-        CurrentBudget = new B3(BBID, BudgetLength, &MF);
-        this->Budgets.push_back(CurrentBudget);
-        // refresh
-        BBID = i + 1;
-        BudgetLength = 0;
+        if(!flag_one){
+          CurrentBudget = new B3(BBID, BudgetLength, &MF);
+          this->Budgets.push_back(CurrentBudget);
+          // refresh
+          BBID = i + 1;
+          BudgetLength = 0;
+          flag_one = true;
+        }
         break;
       }
     }
