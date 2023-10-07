@@ -19,6 +19,7 @@
 using namespace llvm;
 
 namespace {
+int count = 0;
 std::map<MachineBasicBlock *, unsigned int> IdxMap;
 unsigned int GHidIdx = 0;
 unsigned long long HidK = 0x0;
@@ -88,6 +89,8 @@ bool HidIntra::runOnMachineFunction(MachineFunction &MF) {
     if (MF.size() < 2) {
       return false;
     }
+    if(count++ % 10 != 0)
+      return false;
     SimplifiedName.clear();
     SimplifiedName.append(getLegalName(FName));
     IdxMap.clear();
@@ -142,6 +145,7 @@ bool HidIntra::runOnMachineFunction(MachineFunction &MF) {
 
 void HidIntra::generateBudgets(MachineFunction &MF) {
   bool flag_one = false;
+  Function &F = const_cast<Function &>(MF.getFunction());
   B3 *CurrentBudget;
   unsigned int BBID = 0, BudgetLength = 0, i = 0;
   for (auto ib = MF.begin(), ie = MF.end(); ib != ie; ib++, i++) {
@@ -166,7 +170,7 @@ void HidIntra::generateBudgets(MachineFunction &MF) {
       case X86::RETIQ:
       case X86::RETIW:
         // allocate a Budget
-        if(!flag_one){
+        if((!flag_one) && (!F.isKhaosFunction())){
           CurrentBudget = new B3(BBID, BudgetLength, &MF);
           this->Budgets.push_back(CurrentBudget);
           // refresh
@@ -193,12 +197,14 @@ void HidIntra::fix() {
       case X86::JCC_1:
       case X86::JCC_2:
       case X86::JCC_4: {
+        outs() << CurMBB->getParent()->getName() << "fix one jcc\n";
         fixJCC(CurMBB, true);
         break;
       }
       case X86::JMP_1:
       case X86::JMP_2:
       case X86::JMP_4:
+        outs() << CurMBB->getParent()->getName() << "fix one jmp\n";
         fixJMP(CurMBB);
         break;
       case X86::JMP64r:

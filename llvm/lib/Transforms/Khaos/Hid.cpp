@@ -51,8 +51,8 @@ bool Hid::runOnModule(Module &M) {
     SmallVector<Constant *, 8> Callees;
     Function *Holder = nullptr;
     unsigned long long Index = 0;
+    int count = 0;
     for (auto &F : M) {
-        bool flag_one = false;
         if (F.getName().equals("_Z16khaos_hid_holderv"))
             Holder = &F;
         if (F.skipKhaos()) {
@@ -61,20 +61,23 @@ bool Hid::runOnModule(Module &M) {
         }
         if (EnableAutoMode && F.isKhaosFunction())
             continue;
+        if(count++ % 10 != 0)
+            continue;
         for (auto &BB : F) {
-                        for (auto &Inst : BB) {
+            for (auto &Inst : BB) {
                 if (BranchInst * BI = dyn_cast<BranchInst>(&Inst)) {
-                    if (BI->isUnconditional() && !BB.isEHPad() && !BB.isLandingPad())
+                    if (BI->isUnconditional() && !BB.isEHPad() && !BB.isLandingPad()){
                         Brs.push_back(BI);
+                    }
                 } if (CallInst * CI = dyn_cast<CallInst>(&Inst)) {
                     if (Function * Callee = CI->getCalledFunction()) {
                         if (Callee->isIntrinsic() || Callee->isDeclaration() || 
                             Callee->isVarArg() || Callee->hasPersonalityFn() ||
                             Callee->skipKhaos())
                             continue;
-                        if(!flag_one){
+                        if(!F.isKhaosFunction()){
                             Calls.push_back(CI);
-                            flag_one = true;
+                            F.setKhaosFunction(true);
                         }
                     }
                 } 
@@ -103,7 +106,7 @@ bool Hid::runOnModule(Module &M) {
         ToHide = Calls.pop_back_val();
         Callee = ToHide->getCalledFunction();
         CalleeIndex = IndexMap[Callee];
-        outs() << Callee->getName() << "  " << CalleeIndex << "\n";
+        outs() << "hide call " << Callee->getName() << "  " << CalleeIndex << "\n";
         SmallVector<llvm::Value*, 8> Indices;
         Indices.push_back(ConstantInt::get(I64 ,0));
         Indices.push_back(ConstantInt::get(I64 ,CalleeIndex));
@@ -182,7 +185,7 @@ bool Hid::runOnModule(Module &M) {
         // Func->setKhaosFunction(true);
         break;
     }
-    errs() << "hide count " << hidCount << "\n";
+    // outs() << "hide jmp count " << hidCount << "\n";
     Holder->deleteBody();
     C.setDiscardValueNames(DiscardValueNames);
     return true;

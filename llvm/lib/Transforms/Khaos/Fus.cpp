@@ -51,6 +51,7 @@ namespace {
 char Fus::ID = 0;
 
 bool Fus::runOnModule(Module &M) {
+    int count = 0;
     GlobalM = &M;
     GlobalC = &M.getContext();
     GlobalI8 = Type::getInt8Ty(*GlobalC);
@@ -113,6 +114,7 @@ bool Fus::runOnModule(Module &M) {
             if (First == nullptr || Second == nullptr) 
                 continue;
         }
+        count++;
         ValueToValueMapTy V2V;
         FusedParamTypes.clear();
         IntTypes.clear();
@@ -232,6 +234,7 @@ bool Fus::runOnModule(Module &M) {
     }
     if (!SepOnly)
         M.patchIndirectCalls();
+    outs() << "fus function num : " << count << "\n"; 
     return true;
 }
 
