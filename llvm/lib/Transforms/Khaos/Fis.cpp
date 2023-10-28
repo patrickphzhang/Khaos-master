@@ -226,7 +226,7 @@ bool Fis::tryInlineFunction(Function &F)
 
 bool Fis::runOnModule(Module &M) {
     bool Changed = false;
-    outs() << "Fis::runOnModule\n";
+    // outs() << "Fis::runOnModule\n";
     SmallSetVector<Function *, 8> splittedFuncs;
     for (Function &F : M) 
     {

@@ -33,9 +33,9 @@ char CatPass::ID = 0;
 bool CatPass::runOnModule(Module &M) {
 	LLVMContext &C = M.getContext();
 	Type *VoidTy = Type::getVoidTy(C);
-	Function *CatHelper = cast<Function>(M.getOrInsertFunction("cat_khaos", VoidTy).getCallee());
+	// Function *CatHelper = cast<Function>(M.getOrInsertFunction("cat_khaos", VoidTy).getCallee());
         
-	appendToGlobalCtors(M, CatHelper, 0);
+	// appendToGlobalCtors(M, CatHelper, 0);
 	return true;
 }
 

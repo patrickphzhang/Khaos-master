@@ -13,8 +13,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/Analysis/LoopPass.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
@@ -26,19 +30,41 @@
 #define DEBUG_TYPE "Hid"
 
 namespace {
+    SetVector<CallInst*> CallInLoop;
+    SetVector<BranchInst*> BrInLoop;
+
+    struct HidPrepare : public LoopPass {
+        static char ID; // Pass identification, replacement for typeid
+        HidPrepare() : LoopPass(ID) {
+            initializeHidPreparePass(*PassRegistry::getPassRegistry());
+        }
+        bool runOnLoop(Loop *L, LPPassManager &LPM) override;
+        void getAnalysisUsage(AnalysisUsage &AU) const override;
+    };
     struct Hid : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
         Hid() : ModulePass(ID) {
             initializeHidPass(*PassRegistry::getPassRegistry());
         }
         bool runOnModule(Module &M) override;
+        void getAnalysisUsage(AnalysisUsage &AU) const override {
+            AU.setPreservesAll();
+            AU.addRequired<LoopInfoWrapperPass>();
+            AU.addRequired<DominatorTreeWrapperPass>();
+            AU.setPreservesAll();
+        }
+        
     };
+
+
 }
 
 char Hid::ID = 0;
 
 bool Hid::runOnModule(Module &M) {
-    outs() << "control flow hidden pass\n";
+    errs() << "control flow hidden pass\n";
+    errs() << "CallInLoop.size(): " << CallInLoop.size() << "\n";
+    // return false;
     // M.dump();
     LLVMContext &C = M.getContext();
     bool DiscardValueNames = C.shouldDiscardValueNames();
@@ -61,31 +87,31 @@ bool Hid::runOnModule(Module &M) {
         }
         if (EnableAutoMode && F.isKhaosFunction())
             continue;
-        if(count++ % 10 != 0)
-            continue;
         for (auto &BB : F) {
             for (auto &Inst : BB) {
                 if (BranchInst * BI = dyn_cast<BranchInst>(&Inst)) {
-                    if (BI->isUnconditional() && !BB.isEHPad() && !BB.isLandingPad()){
+                    if (BI->isUnconditional() && !BB.isEHPad() && !BB.isLandingPad() && BrInLoop.count(BI) == 0){
                         Brs.push_back(BI);
                     }
-                } if (CallInst * CI = dyn_cast<CallInst>(&Inst)) {
+                } /*if (CallInst * CI = dyn_cast<CallInst>(&Inst)) {
+                    if (CallInLoop.count(CI))
+                        continue;
                     if (Function * Callee = CI->getCalledFunction()) {
                         if (Callee->isIntrinsic() || Callee->isDeclaration() || 
                             Callee->isVarArg() || Callee->hasPersonalityFn() ||
                             Callee->skipKhaos())
                             continue;
-                        if(!F.isKhaosFunction()){
+                        if(!F.isKhaosFunction()) {
                             Calls.push_back(CI);
                             F.setKhaosFunction(true);
                         }
                     }
-                } 
+                } */
             }
         }
     }
     // hide the calls
-    outs() << Calls.size() << "calls to hide\n";
+    /* errs() << Calls.size() << "calls to hide\n";
     CallInst *ToHide;
     Function *Callee;
     for (uint i = 0; i < Calls.size(); i++) {
@@ -104,9 +130,12 @@ bool Hid::runOnModule(Module &M) {
     Value *CalledValue;
     while (!Calls.empty()) {
         ToHide = Calls.pop_back_val();
+        if (count > 2000)
+            break;
+        if(count++ % 20 != 0)
+            continue;
         Callee = ToHide->getCalledFunction();
         CalleeIndex = IndexMap[Callee];
-        outs() << "hide call " << Callee->getName() << "  " << CalleeIndex << "\n";
         SmallVector<llvm::Value*, 8> Indices;
         Indices.push_back(ConstantInt::get(I64 ,0));
         Indices.push_back(ConstantInt::get(I64 ,CalleeIndex));
@@ -118,11 +147,14 @@ bool Hid::runOnModule(Module &M) {
                                 Callee->getFunctionType()->getPointerTo(), 
                                 "", ToHide);
         ToHide->setCalledOperand(ICalleeFunction);
-    }
+    }*/
     // return true;
     // hide the jmps
     if (!Holder) {
         errs() << "No holder function, return.\n";
+        Brs.clear();
+        CallInLoop.clear();
+        BrInLoop.clear();
         return false;
     }
     BasicBlock *Throw = &Holder->getEntryBlock(), 
@@ -142,6 +174,7 @@ bool Hid::runOnModule(Module &M) {
     int hidCount = 0;
     while (!Brs.empty()) {
         ToTry = Brs.pop_back_val();
+
         Func = ToTry->getFunction();
         std::string name = demangle(Func->getName().str());
         if (name.find_first_of("std::") == 0 || name.find_first_of("void std::") == 0)
@@ -185,7 +218,7 @@ bool Hid::runOnModule(Module &M) {
         // Func->setKhaosFunction(true);
         break;
     }
-    // outs() << "hide jmp count " << hidCount << "\n";
+    // errs() << "hide jmp count " << hidCount << "\n";
     Holder->deleteBody();
     C.setDiscardValueNames(DiscardValueNames);
     return true;
@@ -196,4 +229,39 @@ INITIALIZE_PASS_END(Hid, "Hid", "Hid Pass", false, false)
 
 ModulePass *llvm::createHidPass() {
     return new Hid();
+}
+
+char HidPrepare::ID = 0;
+
+void HidPrepare::getAnalysisUsage(AnalysisUsage &AU) const {
+    // Legacy analysis pass to compute dominator tree.
+    AU.addRequired<DominatorTreeWrapperPass>();
+    // Legacy analysis pass to compute loop infomation.  
+    AU.addRequired<LoopInfoWrapperPass>();
+    // getLoopAnalysisUsage(AU);
+    AU.setPreservesAll();
+}
+
+bool HidPrepare::runOnLoop(Loop *L, LPPassManager &LPM) {
+    // errs() << "HidPrepare::runOnLoop\n";
+    for (BasicBlock *BB : L->blocks()) {
+        for (Instruction &I : *BB) {
+            if (CallInst * CI = dyn_cast<CallInst>(&I)) {
+                CallInLoop.insert(CI);
+            } else if (BranchInst * Br = dyn_cast<BranchInst>(&I)) {
+                if (Br->isUnconditional())
+                    BrInLoop.insert(Br);
+            }
+        }
+    }
+    return false;
+}
+
+INITIALIZE_PASS_BEGIN(HidPrepare, "HidPrepare", "HidPrepare Pass", /*cfgonly=*/true, /*analysis=*/true)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
+INITIALIZE_PASS_END(HidPrepare, "HidPrepare", "HidPrepare Pass", /*cfgonly=*/true, /*analysis=*/true)
+
+Pass *llvm::createHidPreparePass() {
+  return new HidPrepare();
 }

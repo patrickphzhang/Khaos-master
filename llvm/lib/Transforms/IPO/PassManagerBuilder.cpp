@@ -827,6 +827,7 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
 
   // Khaos
   if (EnableHid) {
+      PM.add(createHidPreparePass());
       PM.add(createHidPass());
   }
   
